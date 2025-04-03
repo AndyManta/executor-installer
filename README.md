@@ -1,75 +1,63 @@
-# 🌐 T3rn Installer
+# ⚙️ T3rn Executor Installer
 
 > **Note:** This script is an unofficial installer that helps you install and manage the [T3rn Executor](https://github.com/t3rn/executor-release) — an open-source project by the T3rn team.
 > It does not modify or replace the official binaries
+---
 
-A simple and interactive Bash installer for the **T3rn Executor**, designed to streamline installation, configuration, and systemd integration in just a few clicks.
+## 🚀 Features
+
+- ✅ Dependency check for required tools (`curl`, `wget`, `tar`, `jq`)
+- 📦 Install or update the T3rn Executor (latest or custom version)
+- ⚙️ Create a `systemd` service to run the Executor in the background
+- 🔄 Restart the executor anytime via the menu
+- 🌐 Manage and edit custom RPC endpoints for various networks
+- 🔐 Input and update your private key (`PRIVATE_KEY_LOCAL`)
+- ⛽ Customize the maximum L3 gas price
+- 🧠 Toggle executor flags such as:
+  - `EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API`
+  - `EXECUTOR_PROCESS_ORDERS_API_ENABLED`
+- 📜 View live logs from the Executor service
+- 🧹 Uninstall the entire setup with a single command
+- 📋 Live status check of the Executor process
 
 ---
 
-## ⚡ One-liner Installation
+## 🛡️ Privacy & Security
 
-Run the installer directly from GitHub:
+> Your data stays **completely local**.
+
+- 🔐 **Private keys** are only stored in-memory as environment variables and **never saved to disk**.
+- 📡 **No data is transmitted externally** except direct calls to public APIs (e.g. GitHub for release versions).
+- 📝 **No persistent logs** or local log files are created by the script.
+- 📁 All files and configurations are stored under your `$HOME/t3rn/` directory.
+- ❌ Nothing is uploaded, shared, or tracked. This tool is fully offline and privacy-respecting by design.
+
+---
+
+## 📦 Installation & Usage
+
+### 🔧 Option 1: One-Liner Quick Install
+
+You can run the installer instantly with a single command:
 
 ```bash
 bash <(wget -O - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
 
-> This will automatically download and run the latest version of the script.
-
----
-
-## 🚀 Features
-
-- One-command install or update of T3rn Executor
-- Automatic systemd service setup
-- RPC endpoint editing for all supported networks
-- Configurable max gas price and API behavior
-- Private key management
-- Real-time executor logs
-- Safe uninstall option
-- Built-in status check and safety confirmations
-
----
-
-## 📦 Requirements
-
-The following tools must be available in your system:
-
-- `bash`
-- `curl`
-- `wget`
-- `jq`
-- `tar`
-
----
-
-## ⚙️ Usage (manual)
-
-### 1. Clone the repository
+### ⚡ Option 2: Clone & Run
 
 ```bash
 git clone https://github.com/Zikett/t3rn-installer.git
 cd t3rn-installer
-```
-
-### 2. Make the script executable
-
-```bash
 chmod +x t3rn-installer.sh
-```
-
-### 3. Run the installer
-
-```bash
 ./t3rn-installer.sh
 ```
-
 ---
 
-## 🧭 Menu Options
+## 📋 Menu Options
 
-```
+```text
+====== T3rn Installer Menu ======
 1) Install or Update Executor
 2) Uninstall T3rn Installer and Executor
 3) View Executor Logs
@@ -83,63 +71,16 @@ chmod +x t3rn-installer.sh
 0) Exit
 ```
 
-Each option is interactive and safe — empty inputs won’t overwrite existing values unless confirmed.
+## ✅ Requirements
 
----
-
-## 🔐 Security & Config
-
-- RPC endpoints are defined per network and can be customized
-- Gas price and private key can be updated at any time
-- All values are passed securely via systemd `Environment=` variables
-- Configuration changes require a manual restart (option 9)
-
----
-
-## 📄 Systemd Integration
-
-The installer automatically creates a systemd service file:
-
-```ini
-/etc/systemd/system/t3rn-executor.service
-```
-
-You can manage it manually too:
+Make sure these tools are installed:
 
 ```bash
-sudo systemctl status t3rn-executor
-sudo systemctl restart t3rn-executor
+sudo apt update && sudo apt install -y curl wget tar jq
 ```
 
 ---
 
-## 🗑️ Uninstall
+## 📄 License
 
-To completely remove the executor and its service:
-
-```bash
-# Inside the menu
-2) Uninstall T3rn Installer and Executor
-```
-
-The script will ask for confirmation before deleting any files or services.
-
----
-
-# 🔐 Security & Privacy
-
-This script is **100% local** and:
-
-- ❌ **Does not send** any data to external servers  
-- 💾 Stores configuration only **in your system memory or local files**  
-- 🔐 Private keys and RPCs are only used to generate a local systemd service  
-- 🚫 No third-party tracking, telemetry, or remote logging  
-
-You are in full control of your environment. The script is open-source and can be audited by anyone at any time.
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License.  
-See the [LICENSE](LICENSE) file for details.
+MIT License
