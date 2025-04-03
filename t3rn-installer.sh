@@ -12,7 +12,7 @@ done
 
 # Default RPCs (no file-based config)
 declare -A rpcs=(
-    ["l2rn"]="https://b2n.rpc.caldera.xyz/http https://b2n-testnet.blockpi.network/v1/rpc/public"
+    ["l2rn"]="https://b2n.rpc.caldera.xyz/http"
     ["arbt"]="https://arbitrum-sepolia.drpc.org https://sepolia-rollup.arbitrum.io/rpc"
     ["bast"]="https://base-sepolia-rpc.publicnode.com https://base-sepolia.drpc.org"
     ["blst"]="https://sepolia.blast.io https://blast-sepolia.drpc.org"
@@ -30,7 +30,32 @@ declare -A network_names=(
 )
 
 install_executor() {
-    if [[ -d "t3rn" ]]; then
+    echo ""
+    echo "====== Executor Version Selection ======"
+    echo "1) Install latest version"
+    echo "2) Install specific version"
+    echo "0) Back to main menu"
+    read -p "Select an option [0–2]: " ver_choice
+
+    case $ver_choice in
+        0) return;;
+        1)
+            TAG=$(curl -s https://api.github.com/repos/t3rn/executor-release/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+            ;;
+        2)
+            read -p "🔢 Enter version (e.g. 0.60.0): " input_version
+            if [[ $input_version != v* ]]; then
+                TAG="v$input_version"
+            else
+                TAG="$input_version"
+            fi
+            ;;
+        *)
+            echo "❌ Invalid option."
+            return;;
+    esac
+
+    if [[ -d "$HOME/t3rn" ]]; then
         echo "📁 Directory 't3rn' already exists."
         read -p "❓ Do you want to remove and reinstall? (y/N): " confirm
         confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | xargs)
@@ -38,14 +63,14 @@ install_executor() {
         sudo systemctl disable --now t3rn-executor.service 2>/dev/null
         sudo rm -f /etc/systemd/system/t3rn-executor.service
         sudo systemctl daemon-reload
-        rm -rf t3rn
+        rm -rf "$HOME/t3rn"
     fi
 
-    mkdir -p t3rn && cd t3rn || exit 1
-    TAG=$(curl -s https://api.github.com/repos/t3rn/executor-release/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-    echo "⬇️ Downloading executor..."
-    wget --show-progress https://github.com/t3rn/executor-release/releases/download/${TAG}/executor-linux-${TAG}.tar.gz
+    mkdir -p "$HOME/t3rn" && cd "$HOME/t3rn" || exit 1
+    echo "⬇️ Downloading executor version $TAG..."
+    wget --quiet --show-progress https://github.com/t3rn/executor-release/releases/download/${TAG}/executor-linux-${TAG}.tar.gz
     tar -xzf executor-linux-${TAG}.tar.gz
+    rm -f executor-linux-${TAG}.tar.gz
     cd executor/executor/bin || exit 1
 
     export ENVIRONMENT=testnet
@@ -54,6 +79,7 @@ install_executor() {
     export EXECUTOR_PROCESS_BIDS_ENABLED=true
     export EXECUTOR_PROCESS_ORDERS_ENABLED=true
     export EXECUTOR_PROCESS_CLAIMS_ENABLED=true
+    export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia'
 
     read -p "⛽ Max L3 gas price (default 1000): " gas_price
     export EXECUTOR_MAX_L3_GAS_PRICE=${gas_price:-1000}
