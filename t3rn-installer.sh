@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Dependency check
 for cmd in curl wget tar jq; do
     if ! command -v $cmd &> /dev/null; then
         echo "❌ Missing required tool: $cmd"
@@ -10,7 +9,6 @@ for cmd in curl wget tar jq; do
     sleep 0.1
 done
 
-# Default RPCs (no file-based config)
 declare -A rpcs=(
     ["l2rn"]="https://b2n.rpc.caldera.xyz/http"
     ["arbt"]="https://arbitrum-sepolia.drpc.org https://sepolia-rollup.arbitrum.io/rpc"
@@ -197,7 +195,6 @@ uninstall_t3rn() {
     echo "✅ T3rn Installer and Executor have been removed."
 }
 
-# Main Menu
 while true; do
     echo ""
     echo "====== T3rn Installer Menu ======"
