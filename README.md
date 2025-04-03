@@ -41,7 +41,7 @@
 You can run the installer instantly with a single command:
 
 ```bash
-bash <(wget -O - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
+bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
 
 ### ⚡ Option 2: Clone & Run
