@@ -6,19 +6,19 @@
 
 ## 🚀 Features
 
-- ✅ Dependency check for required tools (`curl`, `wget`, `tar`, `jq`)
-- 📦 Install or update the T3rn Executor (latest or custom version)
-- ⚙️ Create a `systemd` service to run the Executor in the background
-- 🔄 Restart the executor anytime via the menu
-- 🌐 Manage and edit custom RPC endpoints for various networks
-- 🔐 Input and update your private key (`PRIVATE_KEY_LOCAL`)
-- ⛽ Customize the maximum L3 gas price
-- 🧠 Toggle executor flags such as:
+- ✅ Checks required dependencies (`curl`, `wget`, `tar`, `jq`)
+- 📦 Install latest or custom Executor version
+- ⚙️ Creates a `systemd` service for background execution
+- 🌐 RPC Manager
+- 🔐 Set or update `PRIVATE_KEY_LOCAL`
+- ⛽ Configure `EXECUTOR_MAX_L3_GAS_PRICE`
+- 🧠 Toggle flags:
   - `EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API`
   - `EXECUTOR_PROCESS_ORDERS_API_ENABLED`
-- 📜 View live logs from the Executor service
-- 🧹 Uninstall the entire setup with a single command
-- 📋 Live status check of the Executor process
+- 📜 Live log viewer via `journalctl`
+- 🔁 Restart executor
+- 🧹 Full uninstall
+- 📋 `systemd` status check
 
 ---
 
@@ -52,22 +52,23 @@ cd t3rn-installer
 chmod +x t3rn-installer.sh
 ./t3rn-installer.sh
 ```
----
+```
+📦 Installation
+1) Install / Update Executor
+2) Uninstall Installer & Executor
 
-## 📋 Menu Options
-
-```text
-====== T3rn Installer Menu ======
-1) Install or Update Executor
-2) Uninstall T3rn Installer and Executor
+🛠️ Configuration
 3) View Executor Logs
-4) Show All Current RPCs
+4) Show Configured RPCs
 5) Edit RPC Endpoints
-6) Change Max L3 Gas Price
-7) Toggle Order API Flags
-8) Set Private Key
+6) Set Max L3 Gas Price
+7) Configure Order API Flags
+8) Set / Update Private Key
+
+🔁 Executor Control
 9) Restart Executor
-10) Check Executor Status
+10) View Executor Status [systemd]
+
 0) Exit
 ```
 
