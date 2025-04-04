@@ -1,5 +1,32 @@
 #!/bin/bash
 
+if ! command -v sudo &>/dev/null; then
+    echo "⚠️  'sudo' is not installed. It is required for this script to work properly."
+    read -p "📦  Do you want to install 'sudo' now? (Y/n): " install_sudo
+    install_sudo=${install_sudo,,}
+
+    if [[ -z "$install_sudo" || "$install_sudo" == "y" || "$install_sudo" == "yes" ]]; then
+        if command -v apt &>/dev/null; then
+            echo "🔐  Installing sudo (root password will be required)..."
+            su -c "apt update && apt install -y sudo"
+        elif command -v yum &>/dev/null; then
+            echo "🔐  Installing sudo (root password will be required)..."
+            su -c "yum install -y sudo"
+        else
+            echo "❌  Unsupported package manager. Please install 'sudo' manually and rerun the script."
+            exit 1
+        fi
+
+        if ! command -v sudo &>/dev/null; then
+            echo "❌  Failed to install sudo. Please install it manually."
+            exit 1
+        fi
+    else
+        echo "❌  Cannot continue without 'sudo'. Exiting."
+        exit 1
+    fi
+fi
+
 for cmd in curl wget tar jq; do
     if ! command -v $cmd &> /dev/null; then
         echo "❌  Missing required tool: $cmd"
