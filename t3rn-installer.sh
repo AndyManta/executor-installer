@@ -3,9 +3,24 @@
 for cmd in curl wget tar jq; do
     if ! command -v $cmd &> /dev/null; then
         echo "❌  Missing required tool: $cmd"
-        exit 1
+        read -p "📦  Do you want to install '$cmd'? (Y/n): " reply
+        reply=${reply,,}
+        if [[ -z "$reply" || "$reply" == "y" || "$reply" == "yes" ]]; then
+            if command -v apt &> /dev/null; then
+                sudo apt update && sudo apt install -y $cmd
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y $cmd
+            else
+                echo "⚠️  Package manager not recognized. Please install '$cmd' manually."
+                exit 1
+            fi
+        else
+            echo "⚠️  '$cmd' is required. Exiting."
+            exit 1
+        fi
+    else
+        echo "🔧  $cmd is installed."
     fi
-    echo "🔧  $cmd is installed."
 done
 
 declare -A rpcs=(
@@ -27,17 +42,16 @@ declare -A network_names=(
 )
 
 install_executor() {
-while true; do
-    echo ""
-    echo "====== Executor Version Selection ======"
-    echo "1) Install latest version"
-    echo "2) Install specific version"
-    echo ""
-    echo "0) Back to main menu"
-    echo ""
-    read -p "Select an option [0–2] and press Enter: " ver_choice
-
-    case $ver_choice in
+    while true; do
+        echo ""
+        echo "====== Executor Version Selection ======"
+        echo "1) Install latest version"
+        echo "2) Install specific version"
+        echo ""
+        echo "0) Back to main menu"
+        echo ""
+        read -p "Select an option [0–2] and press Enter: " ver_choice
+        case $ver_choice in
             0) return;;
             1)
                 TAG=$(curl -s https://api.github.com/repos/t3rn/executor-release/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
@@ -46,12 +60,10 @@ while true; do
             2)
                 read -p "🔢  Enter version (e.g. 0.60.0): " input_version
                 input_version=$(echo "$input_version" | xargs)
-
                 if [[ -z "$input_version" ]]; then
                     echo "↩️  No version entered. Returning to version selection."
                     continue
                 fi
-
                 if [[ $input_version != v* ]]; then
                     TAG="v$input_version"
                 else
@@ -63,23 +75,20 @@ while true; do
                 echo "❌  Invalid option."
                 ;;
         esac
-done
+    done
 
     if [[ -d "$HOME/t3rn" ]]; then
         echo "📁  Directory 't3rn' already exists."
         read -p "❓  Do you want to remove and reinstall? (y/N): " confirm
         confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | xargs)
-
         if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
             echo "🚫  Reinstallation cancelled."
             return
         fi
-
         if [[ "$(pwd)" == "$HOME/t3rn"* ]]; then
             echo "🔁  Moving out of the t3rn directory before deletion..."
             cd ~ || exit 1
         fi
-
         echo "🧹  Removing previous installation..."
         sudo systemctl disable --now t3rn-executor.service 2>/dev/null
         sudo rm -f /etc/systemd/system/t3rn-executor.service
@@ -106,20 +115,52 @@ done
     export EXECUTOR_PROCESS_CLAIMS_ENABLED=true
     export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia'
 
+    while true; do
     read -p "⛽  Max L3 gas price (default 1000): " gas_price
-    export EXECUTOR_MAX_L3_GAS_PRICE=${gas_price:-1000}
+    gas_price=${gas_price// /}
+    if [[ -z "$gas_price" ]]; then
+        gas_price=1000
+        break
+    elif [[ "$gas_price" =~ ^[0-9]+$ ]]; then
+        break
+    else
+        echo "❌  Invalid input. Please enter only numbers."
+    fi
+    done
+    export EXECUTOR_MAX_L3_GAS_PRICE=$gas_price
 
+    while true; do
     read -p "🔧  EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API (true/false, default: true): " pending_api
-    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${pending_api:-true}
+    pending_api=$(echo "$pending_api" | tr '[:upper:]' '[:lower:]' | xargs)
+    if [[ -z "$pending_api" ]]; then
+        pending_api="true"
+        break
+    elif [[ "$pending_api" == "true" || "$pending_api" == "false" ]]; then
+        break
+    else
+        echo "❌  Invalid input. Please enter 'true' or 'false'."
+    fi
+    done
+    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=$pending_api
 
+    while true; do
     read -p "🔧  EXECUTOR_PROCESS_ORDERS_API_ENABLED (true/false, default: true): " orders_api
-    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=${orders_api:-true}
+    orders_api=$(echo "$orders_api" | tr '[:upper:]' '[:lower:]' | xargs)
+    if [[ -z "$orders_api" ]]; then
+        orders_api="true"
+        break
+    elif [[ "$orders_api" == "true" || "$orders_api" == "false" ]]; then
+        break
+    else
+        echo "❌  Invalid input. Please enter 'true' or 'false'."
+    fi
+    done
+    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=$orders_api
 
     read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
-
+    private_key=$(echo "$private_key" | sed 's/^0x//' | xargs)
     if [[ -z "$private_key" ]]; then
         echo -e "⚠️  Private key is empty."
-
         while true; do
             echo -e "\n❓  Do you want to continue without setting the private key?"
             echo "1) 🔁  Go back and enter private key"
@@ -128,7 +169,6 @@ done
             echo "0) ❌  Cancel installation"
             echo ""
             read -p "Select an option [0–2] and press Enter: " pk_choice
-
             case $pk_choice in
                 1)
                     read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
@@ -167,9 +207,82 @@ done
     rpc_json="${rpc_json%, }"; rpc_json+='}'
     export RPC_ENDPOINTS="$rpc_json"
 
+    if ! validate_config_before_start; then
+        echo "❌ Aborting due to invalid configuration."
+        return
+    fi
+
     create_systemd_unit
     cd ../../..
 }
+
+validate_config_before_start() {
+    echo -e "\n🧪 Validating configuration before starting executor..."
+    local error=false
+
+    if [[ -z "$PRIVATE_KEY_LOCAL" ]]; then
+        echo "❌ PRIVATE_KEY_LOCAL is not set."
+        error=true
+    elif [[ ! "$PRIVATE_KEY_LOCAL" =~ ^[a-fA-F0-9]{64}$ ]]; then
+        echo "❌ PRIVATE_KEY_LOCAL format is invalid. Should be 64 hex characters (without 0x)."
+        error=true
+    fi
+
+    if [[ -z "$RPC_ENDPOINTS" ]]; then
+        echo "❌ RPC_ENDPOINTS is empty or not set."
+        error=true
+    else
+        if ! echo "$RPC_ENDPOINTS" | jq empty &>/dev/null; then
+            echo "❌ RPC_ENDPOINTS is not valid JSON."
+            error=true
+        fi
+    fi
+
+    if [[ -z "$ENABLED_NETWORKS" ]]; then
+        echo "❌ ENABLED_NETWORKS is not set."
+        error=true
+    fi
+
+    local bin_path="$HOME/t3rn/executor/executor/bin/executor"
+    if [[ ! -f "$bin_path" ]]; then
+        echo "❌ Executor binary not found at: $bin_path"
+        error=true
+    elif [[ ! -x "$bin_path" ]]; then
+        echo "❌ Executor binary is not executable. Try: chmod +x $bin_path"
+        error=true
+    fi
+
+    for flag in EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API EXECUTOR_PROCESS_ORDERS_API_ENABLED; do
+        val="${!flag}"
+        if [[ "$val" != "true" && "$val" != "false" ]]; then
+            echo "❌ $flag must be 'true' or 'false'. Got: '$val'"
+            error=true
+        fi
+    done
+
+    available_space=$(df "$HOME" | awk 'NR==2 {print $4}')
+    if (( available_space < 100000 )); then
+        echo "⚠️  Less than 100MB of free space available in home directory."
+    fi
+
+    if ! command -v systemctl &> /dev/null; then
+        echo "❌ systemctl is not available. This script relies on systemd."
+        error=true
+    fi
+
+    if ! sudo -n true 2>/dev/null; then
+        echo "⚠️  You might be prompted for a sudo password during setup."
+    fi
+
+    if [[ "$error" == true ]]; then
+        echo -e "\n⚠️  Configuration invalid. Please fix the above issues before proceeding.\n"
+        return 1
+    else
+        echo "✅ All checks passed. Configuration looks valid!"
+        return 0
+    fi
+}
+
 create_systemd_unit() {
     UNIT_PATH="/etc/systemd/system/t3rn-executor.service"
     rpc_escaped=$(echo "$RPC_ENDPOINTS" | jq -c . | sed 's/"/\\"/g')
@@ -362,6 +475,7 @@ while true; do
 
         8)
             read -p "🔑  Enter new PRIVATE_KEY_LOCAL (without 0x): " pk
+            pk=$(echo "$pk" | sed 's/^0x//' | xargs)
             if [[ -n "$pk" ]]; then
                 export PRIVATE_KEY_LOCAL=$pk
                 echo "✅  Private key updated."
