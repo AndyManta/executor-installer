@@ -560,7 +560,7 @@ while true; do
     echo ""
     echo "0) Exit"
     echo ""
-    read -p "➡️  Select an option [0–102] and press Enter: " opt
+    read -p "➡️  Select an option [0–12] and press Enter: " opt
 
     case $opt in
         1) install_executor;;
