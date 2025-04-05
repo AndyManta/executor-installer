@@ -110,4 +110,4 @@ sudo apt update && sudo apt install -y curl wget tar jq
 
 ## 📄 License
 
-MIT License
+[MIT LICENSE](./LICENSE)
