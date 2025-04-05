@@ -23,7 +23,7 @@ chmod +x t3rn-installer.sh
 ./t3rn-installer.sh
 ```
 
-##№ ✅ Requirements
+### ✅ Requirements
 
 Make sure these tools are installed:
 
@@ -31,7 +31,7 @@ Make sure these tools are installed:
 sudo apt update && sudo apt install -y curl wget tar jq
 ```
 
-##№ 🚀 Features
+### 🚀 Features
 
 - 📦 **Executor Installation**  
   Install the latest or a specific version of the Executor from GitHub
@@ -58,7 +58,7 @@ sudo apt update && sudo apt install -y curl wget tar jq
 
 ---
 
-##№ 🛡️ Privacy & Security
+### 🛡️ Privacy & Security
 
 > Your data stays **completely local**.
 
@@ -70,16 +70,16 @@ sudo apt update && sudo apt install -y curl wget tar jq
 
 ---
 
-##№ 📋 Menu Options Overview
+### 📋 Menu Options Overview
 
-##№ 📦 Installation
+### 📦 Installation
 - **1) Install / Update Executor**  
   Downloads and installs the Executor (latest or specific version), configures it, and sets it up as a systemd service.
 
 - **2) Uninstall Installer & Executor**  
   Completely removes the T3rn installation, including configuration and systemd service.
 
-##№ 🛠️ Configuration
+### 🛠️ Configuration
 
 - **3) View Executor Logs**  
   Streams the latest logs from the executor service via `journalctl`.
@@ -103,7 +103,7 @@ sudo apt update && sudo apt install -y curl wget tar jq
 - **8) Set / Update Private Key**  
   Sets or updates the private key used by the executor (without `0x` prefix).
 
-##№ 🔁 Executor Control
+### 🔁 Executor Control
 
 - **9) Restart Executor**  
   Rebuilds the configuration and restarts the T3rn executor systemd service.
@@ -111,12 +111,12 @@ sudo apt update && sudo apt install -y curl wget tar jq
 - **10) View Executor Status [systemd]**  
   Shows the current status of the executor using `systemctl`.
 
-##№ 🔚 Exit
+### 🔚 Exit
 - **0) Exit**  
   Closes the installer menu.
 
 ---
 
-##№ 📄 License
+### 📄 License
 
 [MIT LICENSE](./LICENSE)
