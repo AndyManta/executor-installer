@@ -30,6 +30,21 @@ Make sure these tools are installed:
 ```bash
 sudo apt update && sudo apt install -y curl wget tar jq
 ```
+## 🖥️ Compatibility
+
+This script is built to run on **most mainstream Linux distributions** with no modifications. It automatically checks for required dependencies and installs them if needed (upon confirmation).
+
+### ✅ Verified to work on:
+- **Ubuntu** 18.04+
+- **Debian** 10+
+- **Fedora** 34+
+- **CentOS** 7+
+- **Rocky Linux**, **AlmaLinux**
+- **WSL** (Windows Subsystem for Linux using the above distros)
+
+> ℹ️ If you're using a minimal or containerized image, the script will attempt to install missing tools like `sudo`, `curl`, `jq`, `wget`, and `tar`.
+
+> ❗ `systemd` is required to run the executor as a service. Make sure your environment supports it.
 
 ### 🚀 Features
 
