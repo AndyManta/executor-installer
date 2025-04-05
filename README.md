@@ -69,6 +69,7 @@ sudo apt update && sudo apt install -y curl wget tar jq
 - ❌ Nothing is uploaded, shared, or tracked. This tool is fully offline and privacy-respecting by design.
 
 ---
+![image](https://github.com/user-attachments/assets/d6ffeb43-eee3-4019-95c5-ca8596bb7fa8)
 
 ### 📋 Menu Options Overview
 
