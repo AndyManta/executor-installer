@@ -240,6 +240,7 @@ install_executor() {
     fi
 
     create_systemd_unit
+
     cd ../../..
 }
 
@@ -335,6 +336,7 @@ Environment=EXECUTOR_PROCESS_ORDERS_API_ENABLED=${EXECUTOR_PROCESS_ORDERS_API_EN
 Environment=EXECUTOR_MAX_L3_GAS_PRICE=${EXECUTOR_MAX_L3_GAS_PRICE}
 Environment=PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL}
 Environment=ENABLED_NETWORKS=${ENABLED_NETWORKS}
+Environment=NETWORKS_DISABLED='${NETWORKS_DISABLED}'
 Environment=RPC_ENDPOINTS=$rpc_escaped
 
 ExecStart=$HOME/t3rn/executor/executor/bin/executor
@@ -422,6 +424,118 @@ uninstall_t3rn() {
     echo "✅  T3rn Installer and Executor have been removed."
 }
 
+configure_disabled_networks() {
+    echo -e "\n🛑  Disable Networks"
+    echo "Select networks you want to disable."
+    echo "Enter the numbers (e.g. 1 3 5 or 135):"
+    echo ""
+
+    local i=1
+    declare -A index_to_key
+
+    for key in "${!network_names[@]}"; do
+        echo "$i) ${network_names[$key]} ($key)"
+        index_to_key[$i]="$key"
+        ((i++))
+    done
+
+    echo ""
+    read -p "➡️  Enter numbers of networks to disable: " raw_input
+
+    input=$(echo "$raw_input" | tr -d '[:space:]')
+    if [[ -z "$input" ]]; then
+        echo "ℹ️  No input provided. No networks disabled."
+        return
+    fi
+
+    if ! echo "$input" | grep -Eq '^[1-6]+$'; then
+        echo "❌  Invalid input. Only digits 1 to 6 are allowed."
+        return
+    fi
+
+    declare -A seen
+    local disabled_networks=()
+    for (( i=0; i<${#input}; i++ )); do
+        digit="${input:$i:1}"
+        if [[ -n "${seen[$digit]}" ]]; then continue; fi
+        seen[$digit]=1
+
+        short_key="${index_to_key[$digit]}"
+        full_name="${network_names[$short_key]}"
+        if [[ -n "$full_name" ]]; then
+            id_name=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+            disabled_networks+=("$id_name")
+        fi
+    done
+
+    if [[ ${#disabled_networks[@]} -eq 0 ]]; then
+        echo "ℹ️  No valid selections made. No networks disabled."
+    else
+        export NETWORKS_DISABLED="$(IFS=','; echo "${disabled_networks[*]}")"
+        echo "✅  Networks disabled: $NETWORKS_DISABLED"
+        echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+    fi
+}
+
+enable_networks() {
+    echo -e "\n✅  Enable Networks"
+
+    if [[ -z "$NETWORKS_DISABLED" ]]; then
+        echo "ℹ️  No networks are currently disabled."
+        return
+    fi
+
+    IFS=',' read -ra disabled <<< "$NETWORKS_DISABLED"
+
+    echo "Currently disabled networks:"
+    local i=1
+    declare -A index_to_network
+    for net in "${disabled[@]}"; do
+        echo "$i) $net"
+        index_to_network[$i]="$net"
+        ((i++))
+    done
+
+    echo ""
+    read -p "➡️  Enter numbers of networks to enable (e.g. 1 2 3 or 123): " raw_input
+
+    input=$(echo "$raw_input" | tr -d '[:space:]')
+
+    if [[ -z "$input" ]]; then
+        echo "ℹ️  No input provided. Disabled networks remain unchanged."
+        return
+    fi
+
+    local max_index=${#index_to_network[@]}
+    if ! echo "$input" | grep -Eq "^[1-$max_index]+$"; then
+        echo "❌  Invalid input. Only digits 1 to $max_index are allowed."
+        return
+    fi
+
+    declare -A selected
+    for (( i=0; i<${#input}; i++ )); do
+        digit="${input:$i:1}"
+        selected[$digit]=1
+    done
+
+    local remaining=()
+    for i in "${!index_to_network[@]}"; do
+        if [[ -z "${selected[$i]}" ]]; then
+            remaining+=("${index_to_network[$i]}")
+        fi
+    done
+
+    if [[ ${#remaining[@]} -eq 0 ]]; then
+        unset NETWORKS_DISABLED
+        echo "✅  All networks enabled."
+    else
+        export NETWORKS_DISABLED="$(IFS=','; echo "${remaining[*]}")"
+        echo "✅  Updated disabled networks: $NETWORKS_DISABLED"
+    fi
+
+    echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+}
+
 while true; do
     echo ""
     echo "====== ⚙️  T3rn Installer Menu ======"
@@ -437,10 +551,12 @@ while true; do
     echo "6) Set Max L3 Gas Price"
     echo "7) Configure Order API Flags"
     echo "8) Set / Update Private Key"
+    echo "9) Disable Networks"
+    echo "10) Enable Networks"
     echo ""
     echo "🔁  Executor Control"
-    echo "9) Restart Executor"
-    echo "10) View Executor Status [systemd]"
+    echo "11) Restart Executor"
+    echo "12) View Executor Status [systemd]"
     echo ""
     echo "0) Exit"
     echo ""
@@ -510,7 +626,7 @@ while true; do
             else
                 echo "ℹ️  No input provided. Private key unchanged."
             fi;;
-        9)
+        11)
             echo "🔁  Restarting executor..."
             rebuild_rpc_endpoints
             create_systemd_unit
@@ -519,10 +635,14 @@ while true; do
             else
                 echo "❌  Failed to restart executor. Please check the systemctl logs."
             fi;;
-        10)
+        12)
             echo "🔍  Checking Executor status using systemd..."
             sleep 0.3
             systemctl status t3rn-executor --no-pager || echo "❌  Executor is not running.";;
+       
+        9) configure_disabled_networks;;
+        10) enable_networks;;
+
         0)
             echo "👋  Exiting. Goodbye!"
             exit 0;;
