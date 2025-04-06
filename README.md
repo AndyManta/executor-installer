@@ -62,6 +62,7 @@ This script is built to run on **most mainstream Linux distributions** with no m
   Easily switch:
   - `EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API`
   - `EXECUTOR_PROCESS_ORDERS_API_ENABLED`
+- 🌐 **Enable/Disable Networks**
 - 📜 **Live Logs Viewer**  
   Stream real-time logs using `journalctl`
 - 🔁 **Executor Restart**  
@@ -84,7 +85,7 @@ This script is built to run on **most mainstream Linux distributions** with no m
 - ❌ Nothing is uploaded, shared, or tracked. This tool is fully offline and privacy-respecting by design.
 
 ---
-![image](https://github.com/user-attachments/assets/d6ffeb43-eee3-4019-95c5-ca8596bb7fa8)
+![image](https://github.com/user-attachments/assets/6cc59c8c-ef48-4790-8d79-77f935d17b48)
 
 ### 📋 Menu Options Overview
 
@@ -119,12 +120,16 @@ This script is built to run on **most mainstream Linux distributions** with no m
 - **8) Set / Update Private Key**  
   Sets or updates the private key used by the executor (without `0x` prefix).
 
+- **9) Disable Networks**
+
+- **10) Enable Networks**
+
 ### 🔁 Executor Control
 
-- **9) Restart Executor**  
+- **11) Restart Executor**  
   Rebuilds the configuration and restarts the T3rn executor systemd service.
 
-- **10) View Executor Status [systemd]**  
+- **12) View Executor Status [systemd]**  
   Shows the current status of the executor using `systemctl`.
 
 ### 🔚 Exit
