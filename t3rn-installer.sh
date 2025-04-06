@@ -141,48 +141,11 @@ install_executor() {
     export EXECUTOR_PROCESS_ORDERS_ENABLED=true
     export EXECUTOR_PROCESS_CLAIMS_ENABLED=true
     export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia'
+    export EXECUTOR_MAX_L3_GAS_PRICE=1000
+    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=true
+    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=true
 
     while true; do
-    read -p "⛽  Max L3 gas price (default 1000): " gas_price
-    gas_price=${gas_price// /}
-    if [[ -z "$gas_price" ]]; then
-        gas_price=1000
-        break
-    elif [[ "$gas_price" =~ ^[0-9]+$ ]]; then
-        break
-    else
-        echo "❌  Invalid input. Please enter only numbers."
-    fi
-    done
-    export EXECUTOR_MAX_L3_GAS_PRICE=$gas_price
-
-    while true; do
-    read -p "🔧  EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API (true/false, default: true): " pending_api
-    pending_api=$(echo "$pending_api" | tr '[:upper:]' '[:lower:]' | xargs)
-    if [[ -z "$pending_api" ]]; then
-        pending_api="true"
-        break
-    elif [[ "$pending_api" == "true" || "$pending_api" == "false" ]]; then
-        break
-    else
-        echo "❌  Invalid input. Please enter 'true' or 'false'."
-    fi
-    done
-    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=$pending_api
-
-    while true; do
-    read -p "🔧  EXECUTOR_PROCESS_ORDERS_API_ENABLED (true/false, default: true): " orders_api
-    orders_api=$(echo "$orders_api" | tr '[:upper:]' '[:lower:]' | xargs)
-    if [[ -z "$orders_api" ]]; then
-        orders_api="true"
-        break
-    elif [[ "$orders_api" == "true" || "$orders_api" == "false" ]]; then
-        break
-    else
-        echo "❌  Invalid input. Please enter 'true' or 'false'."
-    fi
-    done
-    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=$orders_api
 
     read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
     private_key=$(echo "$private_key" | sed 's/^0x//' | xargs)
@@ -219,6 +182,8 @@ install_executor() {
             esac
         done
     fi
+    break
+done
 
     export PRIVATE_KEY_LOCAL=$private_key
 
@@ -399,7 +364,7 @@ edit_rpc_menu() {
     if [[ "$changes_made" == true ]]; then
         rebuild_rpc_endpoints
         echo -e "✅  RPC endpoints updated."
-        echo -e "🔄  Restart required to apply changes. Use option [9] in the main menu."
+        echo -e "🔄  Restart required to apply changes. Use option [11] in the main menu."
     else
         echo -e "\nℹ️  No RPC endpoints were changed."
     fi
@@ -473,7 +438,7 @@ configure_disabled_networks() {
     else
         export NETWORKS_DISABLED="$(IFS=','; echo "${disabled_networks[*]}")"
         echo "✅  Networks disabled: $NETWORKS_DISABLED"
-        echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+        echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
     fi
 }
 
@@ -533,7 +498,7 @@ enable_networks() {
         echo "✅  Updated disabled networks: $NETWORKS_DISABLED"
     fi
 
-    echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+    echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
 
 while true; do
@@ -588,7 +553,7 @@ while true; do
             else
                 export EXECUTOR_MAX_L3_GAS_PRICE=$gas
                 echo "✅  New gas price set to $EXECUTOR_MAX_L3_GAS_PRICE."
-                echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+                echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
             fi
             ;;
 
@@ -611,7 +576,7 @@ while true; do
                     export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${val1:-true}
                     export EXECUTOR_PROCESS_ORDERS_API_ENABLED=${val2:-true}
                     echo "✅  Order processing flags updated."
-                    echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+                    echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
                 fi
             fi
             ;;
@@ -622,7 +587,7 @@ while true; do
             if [[ -n "$pk" ]]; then
                 export PRIVATE_KEY_LOCAL=$pk
                 echo "✅  Private key updated."
-                echo "🔄  Restart required to apply changes. Use option [9] in the main menu."
+                echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
             else
                 echo "ℹ️  No input provided. Private key unchanged."
             fi;;
