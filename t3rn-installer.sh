@@ -104,24 +104,32 @@ install_executor() {
         esac
     done
 
-    if [[ -d "$HOME/t3rn" ]]; then
-        echo "📁  Directory 't3rn' already exists."
-        read -p "❓  Do you want to remove and reinstall? (y/N): " confirm
-        confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | xargs)
-        if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
-            echo "🚫  Reinstallation cancelled."
+for dir in "$HOME/t3rn" "$HOME/executor"; do
+    if [[ -d "$dir" ]]; then
+        echo "📁  Directory '$(basename "$dir")' already exists."
+        read -p "❓  Do you want to remove it? (y/N): " confirm_dir
+        confirm_dir=$(echo "$confirm_dir" | tr '[:upper:]' '[:lower:]' | xargs)
+        if [[ "$confirm_dir" == "y" || "$confirm_dir" == "yes" ]]; then
+            if [[ "$(pwd)" == "$dir"* ]]; then
+                cd ~ || exit 1
+            fi
+            echo "🧹  Removing $dir..."
+            rm -rf "$dir"
+        else
+            echo "🚫  Installation cancelled due to existing directory: $dir"
             return
         fi
-        if [[ "$(pwd)" == "$HOME/t3rn"* ]]; then
-            echo "🔁  Moving out of the t3rn directory before deletion..."
-            cd ~ || exit 1
-        fi
-        echo "🧹  Removing previous installation..."
-        sudo systemctl disable --now t3rn-executor.service 2>/dev/null
-        sudo rm -f /etc/systemd/system/t3rn-executor.service
-        sudo systemctl daemon-reload
-        rm -rf "$HOME/t3rn"
     fi
+done
+
+if lsof -i :9090 &>/dev/null; then
+    echo "⚠️  Port 9090 is currently in use."
+    pid_9090=$(lsof -ti :9090)
+    echo "🔪  Killing process using port 9090 (PID: $pid_9090)..."
+    kill -9 $pid_9090
+    sleep 1
+    echo "✅  Port 9090 is now free."
+fi
 
     mkdir -p "$HOME/t3rn" && cd "$HOME/t3rn" || exit 1
     if [[ -z "$TAG" ]]; then
@@ -374,18 +382,30 @@ uninstall_t3rn() {
     read -p "❗  Are you sure you want to completely remove T3rn Installer and Executor? (y/N): " confirm
     confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | xargs)
 
-        if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
+    if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
         echo "🚫  Uninstall cancelled."
         return
     fi
 
     echo "🗑️  Uninstalling T3rn Installer and Executor..."
+
     sudo systemctl disable --now t3rn-executor.service 2>/dev/null
     sudo rm -f /etc/systemd/system/t3rn-executor.service
     sudo systemctl daemon-reload
-    rm -rf "$HOME/t3rn"
+
+    for dir in "$HOME/t3rn" "$HOME/executor"; do
+        if [[ -d "$dir" ]]; then
+            if [[ "$(pwd)" == "$dir"* ]]; then
+                cd ~ || exit 1
+            fi
+            echo "🧹  Removing directory: $dir"
+            rm -rf "$dir"
+        fi
+    done
+
     sudo journalctl --rotate
     sudo journalctl --vacuum-time=1s
+
     echo "✅  T3rn Installer and Executor have been removed."
 }
 
@@ -399,7 +419,7 @@ configure_disabled_networks() {
     declare -A index_to_key
 
     for key in "${!network_names[@]}"; do
-        echo "$i) ${network_names[$key]} ($key)"
+        echo "$i) ${network_names[$key]}"
         index_to_key[$i]="$key"
         ((i++))
     done
@@ -437,10 +457,25 @@ configure_disabled_networks() {
         echo "ℹ️  No valid selections made. No networks disabled."
     else
         export NETWORKS_DISABLED="$(IFS=','; echo "${disabled_networks[*]}")"
-        echo "✅  Networks disabled: $NETWORKS_DISABLED"
-        echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
+        
+        echo -e "\n✅  Networks to be disabled:"
+        for net in "${disabled_networks[@]}"; do
+            readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
+            echo "   • $readable_name"
+        done
+
+        local enabled_networks=()
+        for key in "${!network_names[@]}"; do
+            name_kebab=$(echo "${network_names[$key]}" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+            if [[ ! " ${disabled_networks[*]} " =~ " $name_kebab " ]]; then
+                enabled_networks+=("$name_kebab")
+            fi
+        done
+
+        echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
     fi
 }
+
 
 enable_networks() {
     echo -e "\n✅  Enable Networks"
@@ -456,7 +491,8 @@ enable_networks() {
     local i=1
     declare -A index_to_network
     for net in "${disabled[@]}"; do
-        echo "$i) $net"
+        readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
+        echo "$i) $readable_name"
         index_to_network[$i]="$net"
         ((i++))
     done
@@ -484,9 +520,12 @@ enable_networks() {
     done
 
     local remaining=()
+    local reenabled=()
     for i in "${!index_to_network[@]}"; do
         if [[ -z "${selected[$i]}" ]]; then
             remaining+=("${index_to_network[$i]}")
+        else
+            reenabled+=("${index_to_network[$i]}")
         fi
     done
 
@@ -495,11 +534,17 @@ enable_networks() {
         echo "✅  All networks enabled."
     else
         export NETWORKS_DISABLED="$(IFS=','; echo "${remaining[*]}")"
-        echo "✅  Updated disabled networks: $NETWORKS_DISABLED"
     fi
 
-    echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
+    echo -e "\n✅  Networks that were enabled:"
+    for net in "${reenabled[@]}"; do
+        readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
+        echo "   • $readable_name"
+    done
+
+    echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
+
 
 while true; do
     echo ""
