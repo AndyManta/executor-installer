@@ -584,11 +584,13 @@ while true; do
             sudo journalctl -u t3rn-executor -f --no-pager --output=cat;;
         4)
             echo -e "\n🌐  Current RPC Endpoints:"
+            echo ""
             for net in "${!rpcs[@]}"; do
                 echo "- ${network_names[$net]} ($net):"
                 for url in ${rpcs[$net]}; do
                     echo "   • $url"
                 done
+                echo ""
             done;;
         5) edit_rpc_menu;;
 
