@@ -586,7 +586,7 @@ while true; do
             echo -e "\n🌐  Current RPC Endpoints:"
             echo ""
             for net in "${!rpcs[@]}"; do
-                echo "- ${network_names[$net]} ($net):"
+                echo "- ${network_names[$net]}:"
                 for url in ${rpcs[$net]}; do
                     echo "   • $url"
                 done
