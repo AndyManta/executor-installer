@@ -57,6 +57,7 @@ declare -A rpcs=(
     ["blst"]="https://sepolia.blast.io"
     ["opst"]="https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io"
     ["unit"]="https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org"
+    ["mont"]="https://testnet-rpc.monad.xyz"
 )
 
 declare -A network_names=(
@@ -66,6 +67,7 @@ declare -A network_names=(
     ["blst"]="Blast Sepolia"
     ["opst"]="Optimism Sepolia"
     ["unit"]="Unichain Sepolia"
+    ["mont"]="Monad Testnet"
 )
 
 install_executor() {
@@ -148,7 +150,7 @@ fi
     export EXECUTOR_PROCESS_BIDS_ENABLED=true
     export EXECUTOR_PROCESS_ORDERS_ENABLED=true
     export EXECUTOR_PROCESS_CLAIMS_ENABLED=true
-    export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia'
+    export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet'
     export EXECUTOR_MAX_L3_GAS_PRICE=1000
     export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=true
     export EXECUTOR_PROCESS_ORDERS_API_ENABLED=true
@@ -196,7 +198,7 @@ done
     export PRIVATE_KEY_LOCAL=$private_key
 
     rpc_json="{"
-    for key in "l2rn" "arbt" "bast" "blst" "opst" "unit"; do
+    for key in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont"; do
         urls_string=${rpcs[$key]}
         rpc_json+="\"$key\": ["
         for url in $urls_string; do
@@ -339,15 +341,17 @@ rebuild_rpc_endpoints() {
         bast: $bast,
         blst: $blst,
         opst: $opst,
-        unit: $unit
+        unit: $unit,
+        mont: $mont
     }' \
         --argjson l2rn "$(printf '%s\n' ${rpcs[l2rn]} | jq -R . | jq -s .)" \
         --argjson arbt "$(printf '%s\n' ${rpcs[arbt]} | jq -R . | jq -s .)" \
         --argjson bast "$(printf '%s\n' ${rpcs[bast]} | jq -R . | jq -s .)" \
         --argjson blst "$(printf '%s\n' ${rpcs[blst]} | jq -R . | jq -s .)" \
         --argjson opst "$(printf '%s\n' ${rpcs[opst]} | jq -R . | jq -s .)" \
-        --argjson unit "$(printf '%s\n' ${rpcs[unit]} | jq -R . | jq -s .)"
-    )
+        --argjson unit "$(printf '%s\n' ${rpcs[unit]} | jq -R . | jq -s .)" \
+        --argjson mont "$(printf '%s\n' ${rpcs[mont]} | jq -R . | jq -s .)"
+)
 
     export RPC_ENDPOINTS="$rpc_json"
 }
@@ -356,7 +360,7 @@ edit_rpc_menu() {
     echo -e "\n🌐  Edit RPC Endpoints"
     local changes_made=false
 
-    for net in "l2rn" "arbt" "bast" "blst" "opst" "unit"; do
+    for net in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont"; do
         name=${network_names[$net]}
         echo "🔗  Enter new RPC URL(s) for $name ($net), separated by space (or press Enter to keep current):"
         echo "    Current: ${rpcs[$net]}"
@@ -433,8 +437,8 @@ configure_disabled_networks() {
         return
     fi
 
-    if ! echo "$input" | grep -Eq '^[1-6]+$'; then
-        echo "❌  Invalid input. Only digits 1 to 6 are allowed."
+    if ! echo "$input" | grep -Eq '^[1-7]+$'; then
+        echo "❌  Invalid input. Only digits 1 to 7 are allowed."
         return
     fi
 
@@ -457,7 +461,7 @@ configure_disabled_networks() {
         echo "ℹ️  No valid selections made. No networks disabled."
     else
         export NETWORKS_DISABLED="$(IFS=','; echo "${disabled_networks[*]}")"
-        
+
         echo -e "\n✅  Networks to be disabled:"
         for net in "${disabled_networks[@]}"; do
             readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
@@ -649,7 +653,7 @@ while true; do
             echo "🔍  Checking Executor status using systemd..."
             sleep 0.3
             systemctl status t3rn-executor --no-pager || echo "❌  Executor is not running.";;
-       
+
         9) configure_disabled_networks;;
         10) enable_networks;;
 
