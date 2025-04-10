@@ -4,15 +4,21 @@
 > It does not modify or replace the official binaries
 ---
 
-## 📦 Installation & Usage
+A quick setup script for installing and configuring the T3rn Executor with ease.
 
-### 🔧 Option 1: One-Liner Quick Install
+## 🚀 Usage
 
-You can run the installer instantly with a single command:
-
+### Run the latest version from `main` branch:
 ```bash
 bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
+
+### Run a specific version (tagged release):
+```bash
+bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/v1.0.0/t3rn-installer.sh)
+```
+
+Replace `v1.0.0` with the desired version tag.
 
 ### ⚡ Option 2: Clone & Run
 
