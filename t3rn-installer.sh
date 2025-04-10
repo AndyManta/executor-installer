@@ -132,7 +132,7 @@ for dir in "$HOME/t3rn" "$HOME/executor"; do
             echo "🚫  Installation cancelled due to existing directory: $dir"
             return
         fi
-    fi
+   fi
 done
 
 if lsof -i :9090 &>/dev/null; then
