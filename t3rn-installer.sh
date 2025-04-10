@@ -276,7 +276,7 @@ validate_config_before_start() {
 
     available_space=$(df "$HOME" | awk 'NR==2 {print $4}')
     if (( available_space < 500000 )); then
-        echo "⚠️  Less than 1500MB of free space available in home directory."
+        echo "⚠️  Less than 500MB of free space available in home directory."
     fi
 
     if ! command -v systemctl &> /dev/null; then
