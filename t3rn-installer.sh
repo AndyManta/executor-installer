@@ -27,26 +27,37 @@ if ! command -v sudo &>/dev/null; then
     fi
 fi
 
-for cmd in curl wget tar jq; do
-    if ! command -v $cmd &> /dev/null; then
-        echo "❌  Missing required tool: $cmd"
-        read -p "📦  Do you want to install '$cmd'? (Y/n): " reply
-        reply=${reply,,}
-        if [[ -z "$reply" || "$reply" == "y" || "$reply" == "yes" ]]; then
-            if command -v apt &> /dev/null; then
-                sudo apt update && sudo apt install -y $cmd
-            elif command -v yum &> /dev/null; then
-                sudo yum install -y $cmd
-            else
-                echo "⚠️  Package manager not recognized. Please install '$cmd' manually."
-                exit 1
-            fi
+required_tools=(sudo curl wget tar jq lsof)
+missing=()
+installed=()
+
+for tool in "${required_tools[@]}"; do
+    if command -v "$tool" &> /dev/null; then
+        installed+=("$tool")
+    else
+        missing+=("$tool")
+    fi
+done
+
+echo -n "🔧  Installed tools: "
+echo "${installed[*]}"
+
+for tool in "${missing[@]}"; do
+    echo "❌  $tool is missing."
+    read -p "📦  Do you want to install '$tool'? (Y/n): " reply
+    reply=${reply,,}
+    if [[ -z "$reply" || "$reply" == "y" || "$reply" == "yes" ]]; then
+        if command -v apt &> /dev/null; then
+            sudo apt update && sudo apt install -y "$tool"
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y "$tool"
         else
-            echo "⚠️  '$cmd' is required. Exiting."
+            echo "⚠️  Package manager not recognized. Please install '$tool' manually."
             exit 1
         fi
     else
-        echo "🔧  $cmd is installed."
+        echo "⚠️  '$tool' is required. Exiting."
+        exit 1
     fi
 done
 
@@ -61,7 +72,7 @@ declare -A rpcs=(
 )
 
 declare -A network_names=(
-    ["l2rn"]="L2RN Testnet"
+    ["l2rn"]="B2N Testnet"
     ["arbt"]="Arbitrum Sepolia"
     ["bast"]="Base Sepolia"
     ["blst"]="Blast Sepolia"
@@ -264,8 +275,8 @@ validate_config_before_start() {
     done
 
     available_space=$(df "$HOME" | awk 'NR==2 {print $4}')
-    if (( available_space < 100000 )); then
-        echo "⚠️  Less than 100MB of free space available in home directory."
+    if (( available_space < 500000 )); then
+        echo "⚠️  Less than 1500MB of free space available in home directory."
     fi
 
     if ! command -v systemctl &> /dev/null; then
@@ -362,7 +373,7 @@ edit_rpc_menu() {
 
     for net in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont"; do
         name=${network_names[$net]}
-        echo "🔗  Enter new RPC URL(s) for $name ($net), separated by space (or press Enter to keep current):"
+        echo "🔗  Enter new RPC URL(s) for $name, separated by space (or press Enter to keep current):"
         echo "    Current: ${rpcs[$net]}"
         read -p "> " input
 
