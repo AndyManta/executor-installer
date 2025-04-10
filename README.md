@@ -13,13 +13,6 @@ A quick setup script for installing and configuring the T3rn Executor with ease.
 bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
 
-### Run a specific version (tagged release):
-```bash
-bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/v1.1.0/t3rn-installer.sh)
-```
-
-Replace `v1.1.0` with the desired version tag.
-
 ### ⚡ Option 2: Clone & Run
 
 ```bash
