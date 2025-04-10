@@ -6,7 +6,7 @@
 
 A quick setup script for installing and configuring the T3rn Executor with ease.
 
-## 🚀 Usage
+### 🚀 Usage
 
 ### Run the latest version from `main` branch:
 ```bash
