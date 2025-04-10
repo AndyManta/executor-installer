@@ -1,4 +1,5 @@
 #!/bin/bash
+VERSION="v1.0.0"
 
 if ! command -v sudo &>/dev/null; then
     echo "⚠️  'sudo' is not installed. It is required for this script to work properly."
@@ -41,6 +42,8 @@ done
 
 echo -n "🔧  Installed tools: "
 echo "${installed[*]}"
+echo ""
+echo "🛠️  T3rn Installer — Version $VERSION"
 
 for tool in "${missing[@]}"; do
     echo "❌  $tool is missing."
@@ -132,7 +135,7 @@ for dir in "$HOME/t3rn" "$HOME/executor"; do
             echo "🚫  Installation cancelled due to existing directory: $dir"
             return
         fi
-   fi
+    fi
 done
 
 if lsof -i :9090 &>/dev/null; then
@@ -165,7 +168,8 @@ fi
     export EXECUTOR_MAX_L3_GAS_PRICE=1000
     export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=true
     export EXECUTOR_PROCESS_ORDERS_API_ENABLED=true
-
+    export EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
+    export EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=1
     while true; do
 
     read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
@@ -311,7 +315,7 @@ Type=simple
 User=$USER
 WorkingDirectory=$HOME/t3rn/executor/executor/bin
 
-Environment=ENVIRONMENT=${ENVIRONMENT}
+Environment=ENVIRONMENT=testnet
 Environment=LOG_LEVEL=${LOG_LEVEL}
 Environment=LOG_PRETTY=${LOG_PRETTY}
 Environment=EXECUTOR_PROCESS_BIDS_ENABLED=${EXECUTOR_PROCESS_BIDS_ENABLED}
@@ -324,6 +328,8 @@ Environment=PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL}
 Environment=ENABLED_NETWORKS=${ENABLED_NETWORKS}
 Environment=NETWORKS_DISABLED='${NETWORKS_DISABLED}'
 Environment=RPC_ENDPOINTS=$rpc_escaped
+Environment=EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
+Environment=EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=1
 
 ExecStart=$HOME/t3rn/executor/executor/bin/executor
 Restart=always
