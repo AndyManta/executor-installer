@@ -15,10 +15,10 @@ bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t
 
 ### Run a specific version (tagged release):
 ```bash
-bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/v1.0.0/t3rn-installer.sh)
+bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/v1.1.0/t3rn-installer.sh)
 ```
 
-Replace `v1.0.0` with the desired version tag.
+Replace `v1.1.0` with the desired version tag.
 
 ### ⚡ Option 2: Clone & Run
 
