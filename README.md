@@ -8,7 +8,7 @@ A quick setup script for installing and configuring the T3rn Executor with ease.
 
 ### 🚀 Usage
 
-### Run the latest version from `main` branch:
+### Run the stable version from `main` branch:
 ```bash
 bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
