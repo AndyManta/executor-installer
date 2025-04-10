@@ -1,4 +1,5 @@
 #!/bin/bash
+VERSION="v1.1.0"
 
 if ! command -v sudo &>/dev/null; then
     echo "⚠️  'sudo' is not installed. It is required for this script to work properly."
@@ -41,6 +42,8 @@ done
 
 echo -n "🔧  Installed tools: "
 echo "${installed[*]}"
+echo ""
+echo "🛠️  T3rn Installer — Version $VERSION"
 
 for tool in "${missing[@]}"; do
     echo "❌  $tool is missing."
@@ -165,6 +168,19 @@ fi
     export EXECUTOR_MAX_L3_GAS_PRICE=1000
     export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=true
     export EXECUTOR_PROCESS_ORDERS_API_ENABLED=true
+    export EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
+    export PLACER_PROCESS_PLACED_ORDERS_BATCH_SIZE=50
+export EXECUTOR_BATCH_SIZE=1
+export EXECUTOR_BATCH_CREATION_TIMEOUT_SEC=0
+export EXECUTOR_BATCH_EXECUTE_TRANSMIT=false
+export EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=5
+export EXECUTOR_PROCESS_ORDERS_API_INTERVAL_SEC=1
+export EXECUTOR_AD_HOC_EXECUTE=true
+export EXECUTOR_SKIP_CLAIM_GAS_ESTIMATE=false
+export EXECUTOR_PROCESS_BIDS_BATCH=false
+export EXECUTOR_PROCESS_ORDERS_BATCH=false
+
+
 
     while true; do
 
@@ -311,7 +327,7 @@ Type=simple
 User=$USER
 WorkingDirectory=$HOME/t3rn/executor/executor/bin
 
-Environment=ENVIRONMENT=${ENVIRONMENT}
+Environment=ENVIRONMENT=testnet
 Environment=LOG_LEVEL=${LOG_LEVEL}
 Environment=LOG_PRETTY=${LOG_PRETTY}
 Environment=EXECUTOR_PROCESS_BIDS_ENABLED=${EXECUTOR_PROCESS_BIDS_ENABLED}
@@ -324,6 +340,17 @@ Environment=PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL}
 Environment=ENABLED_NETWORKS=${ENABLED_NETWORKS}
 Environment=NETWORKS_DISABLED='${NETWORKS_DISABLED}'
 Environment=RPC_ENDPOINTS=$rpc_escaped
+Environment=EXECUTOR_BATCH_SIZE=1
+Environment=EXECUTOR_BATCH_CREATION_TIMEOUT_SEC=0
+Environment=EXECUTOR_BATCH_EXECUTE_TRANSMIT=false
+Environment=EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=5
+Environment=EXECUTOR_PROCESS_ORDERS_API_INTERVAL_SEC=1
+Environment=EXECUTOR_AD_HOC_EXECUTE=true
+Environment=EXECUTOR_SKIP_CLAIM_GAS_ESTIMATE=false
+Environment=EXECUTOR_PROCESS_BIDS_BATCH=false
+Environment=EXECUTOR_PROCESS_ORDERS_BATCH=false
+Environment=EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
+Environment=PLACER_PROCESS_PLACED_ORDERS_BATCH_SIZE=50
 
 ExecStart=$HOME/t3rn/executor/executor/bin/executor
 Restart=always
