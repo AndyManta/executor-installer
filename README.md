@@ -21,7 +21,7 @@ This script provides an interactive CLI interface for managing the T3rn Executor
 
 #### Run the latest version [`v1.1.1`]:
 ```bash
-bash <(wget -qO - https://github.com/Zikett/t3rn-installer/releases/download/v1.1.1/t3rn-installer.sh)
+bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
 ```
 - **Old version  [`v1.0.0`] :**
 ```bash
