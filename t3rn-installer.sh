@@ -1,12 +1,35 @@
 #!/bin/bash
-VERSION="v1.0.0"
+VERSION="v1.1.1"
+
+ENV_FILE="$HOME/t3rn/.env"
+
+if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+fi
+
+confirm_prompt() {
+    local prompt="$1"
+    read -p "$prompt (y/N): " response
+    response=$(echo "$response" | tr '[:upper:]' '[:lower:]' | xargs)
+    [[ "$response" == "y" || "$response" == "yes" ]]
+}
+
+prompt_input() {
+    local prompt="$1"
+    local var
+    read -p "$prompt" var
+    echo "$var" | xargs
+}
+
+is_number() {
+    [[ "$1" =~ ^[0-9]+$ ]]
+}
 
 if ! command -v sudo &>/dev/null; then
     echo "⚠️  'sudo' is not installed. It is required for this script to work properly."
-    read -p "📦  Do you want to install 'sudo' now? (Y/n): " install_sudo
-    install_sudo=${install_sudo,,}
-
-    if [[ -z "$install_sudo" || "$install_sudo" == "y" || "$install_sudo" == "yes" ]]; then
+    if confirm_prompt "📦  Do you want to install 'sudo' now?"; then
         if command -v apt &>/dev/null; then
             echo "🔐  Installing sudo (root password will be required)..."
             su -c "apt update && apt install -y sudo"
@@ -33,7 +56,7 @@ missing=()
 installed=()
 
 for tool in "${required_tools[@]}"; do
-    if command -v "$tool" &> /dev/null; then
+    if command -v "$tool" &>/dev/null; then
         installed+=("$tool")
     else
         missing+=("$tool")
@@ -50,9 +73,9 @@ for tool in "${missing[@]}"; do
     read -p "📦  Do you want to install '$tool'? (Y/n): " reply
     reply=${reply,,}
     if [[ -z "$reply" || "$reply" == "y" || "$reply" == "yes" ]]; then
-        if command -v apt &> /dev/null; then
+        if command -v apt &>/dev/null; then
             sudo apt update && sudo apt install -y "$tool"
-        elif command -v yum &> /dev/null; then
+        elif command -v yum &>/dev/null; then
             sudo yum install -y "$tool"
         else
             echo "⚠️  Package manager not recognized. Please install '$tool' manually."
@@ -95,57 +118,59 @@ install_executor() {
         echo ""
         read -p "Select an option [0–2] and press Enter: " ver_choice
         case $ver_choice in
-            0) return;;
-            1)
-                TAG=$(curl -s https://api.github.com/repos/t3rn/executor-release/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
-                break
-                ;;
-            2)
-                read -p "🔢  Enter version (e.g. 0.60.0): " input_version
-                input_version=$(echo "$input_version" | xargs)
-                if [[ -z "$input_version" ]]; then
-                    echo "↩️  No version entered. Returning to version selection."
-                    continue
-                fi
-                if [[ $input_version != v* ]]; then
-                    TAG="v$input_version"
-                else
-                    TAG="$input_version"
-                fi
-                break
-                ;;
-            *)
-                echo "❌  Invalid option."
-                ;;
+        0) return ;;
+        1)
+            TAG=$(curl -s https://api.github.com/repos/t3rn/executor-release/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+            break
+            ;;
+        2)
+            input_version=$(prompt_input "🔢  Enter version (e.g. 0.60.0): ")
+            if [[ -z "$input_version" ]]; then
+                echo "↩️  No version entered. Returning to version selection."
+                continue
+            fi
+            if [[ $input_version != v* ]]; then
+                TAG="v$input_version"
+            else
+                TAG="$input_version"
+            fi
+            break
+            ;;
+        *)
+            echo "❌  Invalid option."
+            ;;
         esac
     done
 
-for dir in "$HOME/t3rn" "$HOME/executor"; do
-    if [[ -d "$dir" ]]; then
-        echo "📁  Directory '$(basename "$dir")' already exists."
-        read -p "❓  Do you want to remove it? (y/N): " confirm_dir
-        confirm_dir=$(echo "$confirm_dir" | tr '[:upper:]' '[:lower:]' | xargs)
-        if [[ "$confirm_dir" == "y" || "$confirm_dir" == "yes" ]]; then
-            if [[ "$(pwd)" == "$dir"* ]]; then
-                cd ~ || exit 1
-            fi
-            echo "🧹  Removing $dir..."
-            rm -rf "$dir"
-        else
-            echo "🚫  Installation cancelled due to existing directory: $dir"
-            return
-        fi
+    if [[ -f "$ENV_FILE" ]]; then
+        echo "🧹  Removing existing configuration: $ENV_FILE"
+        rm -f "$ENV_FILE"
     fi
-done
 
-if lsof -i :9090 &>/dev/null; then
-    echo "⚠️  Port 9090 is currently in use."
-    pid_9090=$(lsof -ti :9090)
-    echo "🔪  Killing process using port 9090 (PID: $pid_9090)..."
-    kill -9 $pid_9090
-    sleep 1
-    echo "✅  Port 9090 is now free."
-fi
+    for dir in "$HOME/t3rn" "$HOME/executor"; do
+        if [[ -d "$dir" ]]; then
+            echo "📁  Directory '$(basename "$dir")' already exists."
+            if confirm_prompt "❓  Do you want to remove it?"; then
+                if [[ "$(pwd)" == "$dir"* ]]; then
+                    cd ~ || exit 1
+                fi
+                echo "🧹  Removing $dir..."
+                rm -rf "$dir"
+            else
+                echo "🚫  Installation cancelled due to existing directory: $dir"
+                return
+            fi
+        fi
+    done
+
+    if lsof -i :9090 &>/dev/null; then
+        echo "⚠️  Port 9090 is currently in use."
+        pid_9090=$(lsof -ti :9090)
+        echo "🔪  Killing process using port 9090 (PID: $pid_9090)..."
+        kill -9 $pid_9090
+        sleep 1
+        echo "✅  Port 9090 is now free."
+    fi
 
     mkdir -p "$HOME/t3rn" && cd "$HOME/t3rn" || exit 1
     if [[ -z "$TAG" ]]; then
@@ -158,35 +183,35 @@ fi
     rm -f executor-linux-${TAG}.tar.gz
     cd executor/executor/bin || exit 1
 
-    export ENVIRONMENT=testnet
-    export LOG_LEVEL=debug
-    export LOG_PRETTY=false
-    export EXECUTOR_PROCESS_BIDS_ENABLED=true
-    export EXECUTOR_PROCESS_ORDERS_ENABLED=true
-    export EXECUTOR_PROCESS_CLAIMS_ENABLED=true
-    export ENABLED_NETWORKS='arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet'
-    export EXECUTOR_MAX_L3_GAS_PRICE=1000
-    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=true
-    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=true
-    export EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
-    export EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=1
+    export ENVIRONMENT=${ENVIRONMENT:-testnet}
+    export LOG_LEVEL=${LOG_LEVEL:-debug}
+    export LOG_PRETTY=${LOG_PRETTY:-false}
+    export EXECUTOR_PROCESS_BIDS_ENABLED=${EXECUTOR_PROCESS_BIDS_ENABLED:-true}
+    export EXECUTOR_PROCESS_ORDERS_ENABLED=${EXECUTOR_PROCESS_ORDERS_ENABLED:-true}
+    export EXECUTOR_PROCESS_CLAIMS_ENABLED=${EXECUTOR_PROCESS_CLAIMS_ENABLED:-true}
+    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API:-true}
+    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=${EXECUTOR_PROCESS_ORDERS_API_ENABLED:-true}
+    export EXECUTOR_MAX_L3_GAS_PRICE=${EXECUTOR_MAX_L3_GAS_PRICE:-1000}
+    export EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=${EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC:-30}
+    export EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=${EXECUTOR_MIN_BALANCE_THRESHOLD_ETH:-1}
+    export PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
     while true; do
 
-    read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
-    private_key=$(echo "$private_key" | sed 's/^0x//' | xargs)
-    if [[ -z "$private_key" ]]; then
-        echo -e "⚠️  Private key is empty."
-        while true; do
-            echo -e "\n❓  Do you want to continue without setting the private key?"
-            echo "1) 🔁  Go back and enter private key"
-            echo "2) ⏩  Continue installation without private key"
-            echo ""
-            echo "0) ❌  Cancel installation"
-            echo ""
-            read -p "Select an option [0–2] and press Enter: " pk_choice
-            case $pk_choice in
+        private_key=$(prompt_input "🔑  Enter PRIVATE_KEY_LOCAL: ")
+        private_key=$(echo "$private_key" | sed 's/^0x//')
+        if [[ -z "$private_key" ]]; then
+            echo -e "⚠️  Private key is empty."
+            while true; do
+                echo -e "\n❓  Do you want to continue without setting the private key?"
+                echo "1) 🔁  Go back and enter private key"
+                echo "2) ⏩  Continue installation without private key"
+                echo ""
+                echo "0) ❌  Cancel installation"
+                echo ""
+                read -p "Select an option [0–2] and press Enter: " pk_choice
+                case $pk_choice in
                 1)
-                    read -p "🔑  Enter PRIVATE_KEY_LOCAL (without 0x): " private_key
+                    read -p "🔑  Enter PRIVATE_KEY_LOCAL: " private_key
                     if [[ -n "$private_key" ]]; then
                         break
                     else
@@ -204,34 +229,24 @@ fi
                 *)
                     echo "❌  Invalid option. Please choose 1, 2 or 0."
                     ;;
-            esac
-        done
-    fi
-    break
-done
+                esac
+            done
+        fi
+        break
+    done
 
     export PRIVATE_KEY_LOCAL=$private_key
-
-    rpc_json="{"
-    for key in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont"; do
-        urls_string=${rpcs[$key]}
-        rpc_json+="\"$key\": ["
-        for url in $urls_string; do
-            rpc_json+="\"$url\", "
-        done
-        rpc_json="${rpc_json%, }], "
-    done
-    rpc_json="${rpc_json%, }"; rpc_json+='}'
-    export RPC_ENDPOINTS="$rpc_json"
-
+    rebuild_rpc_endpoints
+    rebuild_enabled_networks
     if ! validate_config_before_start; then
         echo "❌ Aborting due to invalid configuration."
         return
     fi
-
+    save_env_file
+    sudo systemctl disable --now t3rn-executor.service 2>/dev/null
+    sudo rm -f /etc/systemd/system/t3rn-executor.service
+    sudo systemctl daemon-reload
     create_systemd_unit
-
-    cd ../../..
 }
 
 validate_config_before_start() {
@@ -279,11 +294,11 @@ validate_config_before_start() {
     done
 
     available_space=$(df "$HOME" | awk 'NR==2 {print $4}')
-    if (( available_space < 500000 )); then
+    if ((available_space < 500000)); then
         echo "⚠️  Less than 500MB of free space available in home directory."
     fi
 
-    if ! command -v systemctl &> /dev/null; then
+    if ! command -v systemctl &>/dev/null; then
         echo "❌ systemctl is not available. This script relies on systemd."
         error=true
     fi
@@ -301,37 +316,47 @@ validate_config_before_start() {
     fi
 }
 
+save_env_file() {
+    mkdir -p "$HOME/t3rn"
+    cat >"$ENV_FILE" <<EOF
+ENVIRONMENT=${ENVIRONMENT:-testnet}
+LOG_LEVEL=${LOG_LEVEL:-debug}
+LOG_PRETTY=${LOG_PRETTY:-false}
+
+EXECUTOR_PROCESS_BIDS_ENABLED=${EXECUTOR_PROCESS_BIDS_ENABLED:-true}
+EXECUTOR_PROCESS_ORDERS_ENABLED=${EXECUTOR_PROCESS_ORDERS_ENABLED:-true}
+EXECUTOR_PROCESS_CLAIMS_ENABLED=${EXECUTOR_PROCESS_CLAIMS_ENABLED:-true}
+EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API:-true}
+EXECUTOR_PROCESS_ORDERS_API_ENABLED=${EXECUTOR_PROCESS_ORDERS_API_ENABLED:-true}
+EXECUTOR_MAX_L3_GAS_PRICE=${EXECUTOR_MAX_L3_GAS_PRICE:-1000}
+EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=${EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC:-30}
+EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=${EXECUTOR_MIN_BALANCE_THRESHOLD_ETH:-1}
+PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
+
+PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
+ENABLED_NETWORKS=${ENABLED_NETWORKS:-arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet}
+NETWORKS_DISABLED=${NETWORKS_DISABLED:-""}
+
+RPC_ENDPOINTS='${RPC_ENDPOINTS}'
+EOF
+}
+
 create_systemd_unit() {
     UNIT_PATH="/etc/systemd/system/t3rn-executor.service"
-    rpc_escaped=$(echo "$RPC_ENDPOINTS" | jq -c . | sed 's/"/\\"/g')
-
+    ENV_PATH="$HOME/t3rn/.env"
+    EXEC_PATH="$HOME/t3rn/executor/executor/bin/executor"
     sudo bash -c "cat > $UNIT_PATH" <<EOF
+
 [Unit]
 Description=T3rn Executor Service
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
-WorkingDirectory=$HOME/t3rn/executor/executor/bin
-
-Environment=ENVIRONMENT=testnet
-Environment=LOG_LEVEL=${LOG_LEVEL}
-Environment=LOG_PRETTY=${LOG_PRETTY}
-Environment=EXECUTOR_PROCESS_BIDS_ENABLED=${EXECUTOR_PROCESS_BIDS_ENABLED}
-Environment=EXECUTOR_PROCESS_ORDERS_ENABLED=${EXECUTOR_PROCESS_ORDERS_ENABLED}
-Environment=EXECUTOR_PROCESS_CLAIMS_ENABLED=${EXECUTOR_PROCESS_CLAIMS_ENABLED}
-Environment=EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API}
-Environment=EXECUTOR_PROCESS_ORDERS_API_ENABLED=${EXECUTOR_PROCESS_ORDERS_API_ENABLED}
-Environment=EXECUTOR_MAX_L3_GAS_PRICE=${EXECUTOR_MAX_L3_GAS_PRICE}
-Environment=PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL}
-Environment=ENABLED_NETWORKS=${ENABLED_NETWORKS}
-Environment=NETWORKS_DISABLED='${NETWORKS_DISABLED}'
-Environment=RPC_ENDPOINTS=$rpc_escaped
-Environment=EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=30
-Environment=EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=1
-
-ExecStart=$HOME/t3rn/executor/executor/bin/executor
+User=${SUDO_USER:-$USER}
+WorkingDirectory=$(dirname "$EXEC_PATH")
+EnvironmentFile=$ENV_PATH
+ExecStart=$EXEC_PATH
 Restart=always
 RestartSec=5
 
@@ -341,18 +366,19 @@ EOF
 
     sudo systemctl daemon-reload
     sudo systemctl enable --now t3rn-executor
-    echo "✅  Systemd service 't3rn-executor' installed and started."
+    echo "✅  Systemd service 't3rn-executor' installed and started. Run option [3] to check logs."
     sleep 0.3
 
     if systemctl is-active --quiet t3rn-executor; then
         echo "🚀  Executor is running."
     else
-        echo "❌  Executor failed to start. Run option 10 to check status."
+        echo "❌  Executor failed to start. Run option [12] to check status."
     fi
 }
 
 rebuild_rpc_endpoints() {
-    rpc_json=$(jq -n '{
+    rpc_json=$(
+        jq -n '{
         l2rn: $l2rn,
         arbt: $arbt,
         bast: $bast,
@@ -361,14 +387,14 @@ rebuild_rpc_endpoints() {
         unit: $unit,
         mont: $mont
     }' \
-        --argjson l2rn "$(printf '%s\n' ${rpcs[l2rn]} | jq -R . | jq -s .)" \
-        --argjson arbt "$(printf '%s\n' ${rpcs[arbt]} | jq -R . | jq -s .)" \
-        --argjson bast "$(printf '%s\n' ${rpcs[bast]} | jq -R . | jq -s .)" \
-        --argjson blst "$(printf '%s\n' ${rpcs[blst]} | jq -R . | jq -s .)" \
-        --argjson opst "$(printf '%s\n' ${rpcs[opst]} | jq -R . | jq -s .)" \
-        --argjson unit "$(printf '%s\n' ${rpcs[unit]} | jq -R . | jq -s .)" \
-        --argjson mont "$(printf '%s\n' ${rpcs[mont]} | jq -R . | jq -s .)"
-)
+            --argjson l2rn "$(printf '%s\n' ${rpcs[l2rn]} | jq -R . | jq -s .)" \
+            --argjson arbt "$(printf '%s\n' ${rpcs[arbt]} | jq -R . | jq -s .)" \
+            --argjson bast "$(printf '%s\n' ${rpcs[bast]} | jq -R . | jq -s .)" \
+            --argjson blst "$(printf '%s\n' ${rpcs[blst]} | jq -R . | jq -s .)" \
+            --argjson opst "$(printf '%s\n' ${rpcs[opst]} | jq -R . | jq -s .)" \
+            --argjson unit "$(printf '%s\n' ${rpcs[unit]} | jq -R . | jq -s .)" \
+            --argjson mont "$(printf '%s\n' ${rpcs[mont]} | jq -R . | jq -s .)"
+    )
 
     export RPC_ENDPOINTS="$rpc_json"
 }
@@ -392,18 +418,17 @@ edit_rpc_menu() {
 
     if [[ "$changes_made" == true ]]; then
         rebuild_rpc_endpoints
-        echo -e "✅  RPC endpoints updated."
+        save_env_file
+        echo -e "✅  RPC endpoints updated and saved to .env."
         echo -e "🔄  Restart required to apply changes. Use option [11] in the main menu."
     else
         echo -e "\nℹ️  No RPC endpoints were changed."
     fi
+
 }
 
 uninstall_t3rn() {
-    read -p "❗  Are you sure you want to completely remove T3rn Installer and Executor? (y/N): " confirm
-    confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]' | xargs)
-
-    if [[ "$confirm" != "y" && "$confirm" != "yes" ]]; then
+    if ! confirm_prompt "❗  Are you sure you want to completely remove T3rn Installer and Executor?"; then
         echo "🚫  Uninstall cancelled."
         return
     fi
@@ -426,6 +451,7 @@ uninstall_t3rn() {
 
     sudo journalctl --rotate
     sudo journalctl --vacuum-time=1s
+    rm -f "$HOME/t3rn/.env"
 
     echo "✅  T3rn Installer and Executor have been removed."
 }
@@ -433,71 +459,84 @@ uninstall_t3rn() {
 configure_disabled_networks() {
     echo -e "\n🛑  Disable Networks"
     echo "Select networks you want to disable."
-    echo "Enter the numbers (e.g. 1 3 5 or 135):"
+    echo "Enter the numbers (e.g. 1 3 5):"
     echo ""
+
+    IFS=',' read -ra already_disabled <<<"$NETWORKS_DISABLED"
+    declare -A disabled_set
+    for net in "${already_disabled[@]}"; do
+        disabled_set[$net]=1
+    done
 
     local i=1
     declare -A index_to_key
 
     for key in "${!network_names[@]}"; do
-        echo "$i) ${network_names[$key]}"
+        full_name="${network_names[$key]}"
+        kebab_case=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+
+        if [[ -n "${disabled_set[$kebab_case]}" ]]; then
+            continue
+        fi
+
+        echo "$i) $full_name"
         index_to_key[$i]="$key"
         ((i++))
     done
 
     echo ""
-    read -p "➡️  Enter numbers of networks to disable: " raw_input
+    read -p "➡️  Enter numbers of networks to disable: (e.g. 1 2 3): " input
 
-    input=$(echo "$raw_input" | tr -d '[:space:]')
     if [[ -z "$input" ]]; then
         echo "ℹ️  No input provided. No networks disabled."
         return
     fi
 
-    if ! echo "$input" | grep -Eq '^[1-7]+$'; then
-        echo "❌  Invalid input. Only digits 1 to 7 are allowed."
-        return
-    fi
-
-    declare -A seen
-    local disabled_networks=()
-    for (( i=0; i<${#input}; i++ )); do
-        digit="${input:$i:1}"
-        if [[ -n "${seen[$digit]}" ]]; then continue; fi
-        seen[$digit]=1
-
-        short_key="${index_to_key[$digit]}"
-        full_name="${network_names[$short_key]}"
-        if [[ -n "$full_name" ]]; then
-            id_name=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
-            disabled_networks+=("$id_name")
+    for d in $input; do
+        if ! is_number "$d" || [[ -z "${index_to_key[$d]}" ]]; then
+            echo "❌ Invalid input: '$d'. Allowed: numbers from 1 to $((${#index_to_key[@]})) separated by spaces."
+            return
         fi
     done
 
-    if [[ ${#disabled_networks[@]} -eq 0 ]]; then
+    declare -A seen
+    local disabled_networks=()
+
+    for d in $input; do
+        if [[ -z "${seen[$d]}" ]]; then
+            seen[$d]=1
+            full_name="${network_names[${index_to_key[$d]}]}"
+            kebab_case=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+            disabled_set[$kebab_case]=1
+        fi
+    done
+
+    if [[ ${#disabled_set[@]} -eq 0 ]]; then
         echo "ℹ️  No valid selections made. No networks disabled."
     else
-        export NETWORKS_DISABLED="$(IFS=','; echo "${disabled_networks[*]}")"
+
+        final_disabled=()
+        for net in "${!disabled_set[@]}"; do
+            final_disabled+=("$net")
+        done
+
+        export NETWORKS_DISABLED="$(
+            IFS=','
+            echo "${final_disabled[*]}"
+        )"
 
         echo -e "\n✅  Networks to be disabled:"
-        for net in "${disabled_networks[@]}"; do
+        for net in "${final_disabled[@]}"; do
             readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
             echo "   • $readable_name"
         done
 
-        local enabled_networks=()
-        for key in "${!network_names[@]}"; do
-            name_kebab=$(echo "${network_names[$key]}" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
-            if [[ ! " ${disabled_networks[*]} " =~ " $name_kebab " ]]; then
-                enabled_networks+=("$name_kebab")
-            fi
-        done
+        rebuild_enabled_networks
+        save_env_file
 
         echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
     fi
 }
-
-
 enable_networks() {
     echo -e "\n✅  Enable Networks"
 
@@ -506,7 +545,7 @@ enable_networks() {
         return
     fi
 
-    IFS=',' read -ra disabled <<< "$NETWORKS_DISABLED"
+    IFS=',' read -ra disabled <<<"$NETWORKS_DISABLED"
 
     echo "Currently disabled networks:"
     local i=1
@@ -519,9 +558,7 @@ enable_networks() {
     done
 
     echo ""
-    read -p "➡️  Enter numbers of networks to enable (e.g. 1 2 3 or 123): " raw_input
-
-    input=$(echo "$raw_input" | tr -d '[:space:]')
+    read -p "➡️  Enter numbers of networks to enable (e.g. 1 2 3): " input
 
     if [[ -z "$input" ]]; then
         echo "ℹ️  No input provided. Disabled networks remain unchanged."
@@ -529,15 +566,16 @@ enable_networks() {
     fi
 
     local max_index=${#index_to_network[@]}
-    if ! echo "$input" | grep -Eq "^[1-$max_index]+$"; then
-        echo "❌  Invalid input. Only digits 1 to $max_index are allowed."
-        return
-    fi
+    for d in $input; do
+        if ! is_number "$d" || [[ -z "${index_to_network[$d]}" ]]; then
+            echo "❌ Invalid input: '$d'. Allowed: numbers from 1 to $max_index separated by spaces."
+            return
+        fi
+    done
 
     declare -A selected
-    for (( i=0; i<${#input}; i++ )); do
-        digit="${input:$i:1}"
-        selected[$digit]=1
+    for d in $input; do
+        selected[$d]=1
     done
 
     local remaining=()
@@ -554,9 +592,13 @@ enable_networks() {
         unset NETWORKS_DISABLED
         echo "✅  All networks enabled."
     else
-        export NETWORKS_DISABLED="$(IFS=','; echo "${remaining[*]}")"
+        export NETWORKS_DISABLED="$(
+            IFS=','
+            echo "${remaining[*]}"
+        )"
     fi
-
+    rebuild_enabled_networks
+    save_env_file
     echo -e "\n✅  Networks that were enabled:"
     for net in "${reenabled[@]}"; do
         readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
@@ -566,6 +608,27 @@ enable_networks() {
     echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
 
+rebuild_enabled_networks() {
+    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
+
+    declare -A disabled_map=()
+    for net in "${disabled_arr[@]}"; do
+        disabled_map[$net]=1
+    done
+
+    local enabled_networks=()
+    for key in "${!network_names[@]}"; do
+        id_name=$(echo "${network_names[$key]}" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+        if [[ -z "${disabled_map[$id_name]}" ]]; then
+            enabled_networks+=("$id_name")
+        fi
+    done
+
+    export ENABLED_NETWORKS="$(
+        IFS=','
+        echo "${enabled_networks[*]}"
+    )"
+}
 
 while true; do
     echo ""
@@ -594,91 +657,102 @@ while true; do
     read -p "➡️  Select an option [0–12] and press Enter: " opt
 
     case $opt in
-        1) install_executor;;
-        2) uninstall_t3rn;;
-        3)
-            echo "📜  Viewing executor logs (without timestamps/hostnames)..."
-            sudo journalctl -u t3rn-executor -f --no-pager --output=cat;;
-        4)
-            echo -e "\n🌐  Current RPC Endpoints:"
+    1) install_executor ;;
+    2) uninstall_t3rn ;;
+    3)
+        echo "📜  Viewing executor logs (without timestamps/hostnames)..."
+        sudo journalctl -u t3rn-executor -f --no-pager --output=cat
+        ;;
+
+    4)
+        echo -e "\n🌐  Current RPC Endpoints:"
+        echo ""
+        for net in "${!rpcs[@]}"; do
+            echo "- ${network_names[$net]}:"
+            for url in ${rpcs[$net]}; do
+                echo "   • $url"
+            done
             echo ""
-            for net in "${!rpcs[@]}"; do
-                echo "- ${network_names[$net]}:"
-                for url in ${rpcs[$net]}; do
-                    echo "   • $url"
-                done
-                echo ""
-            done;;
-        5) edit_rpc_menu;;
+        done
+        ;;
 
-        6)
-            read -p "⛽  Enter new Max L3 gas price: " gas
+    5) edit_rpc_menu ;;
 
-            if [[ -z "$gas" ]]; then
-                echo "ℹ️  No input provided. Gas price unchanged."
-            elif ! [[ "$gas" =~ ^[0-9]+$ ]]; then
-                echo "❌  Invalid gas price. Must be a number."
-            else
-                export EXECUTOR_MAX_L3_GAS_PRICE=$gas
-                echo "✅  New gas price set to $EXECUTOR_MAX_L3_GAS_PRICE."
-                echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
-            fi
-            ;;
+    6)
+        gas=$(prompt_input "⛽  Enter new Max L3 gas price: ")
 
-        7)
-            read -p "🔧  EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API (true/false, default: true): " val1
-            read -p "🔧  EXECUTOR_PROCESS_ORDERS_API_ENABLED (true/false, default: true): " val2
+        if [[ -z "$gas" ]]; then
+            echo "ℹ️  No input provided. Gas price unchanged."
+        elif ! is_number "$gas"; then
+            echo "❌  Invalid gas price. Must be a number."
+        else
+            export EXECUTOR_MAX_L3_GAS_PRICE=$gas
+            save_env_file
+            echo "✅  New gas price set to $EXECUTOR_MAX_L3_GAS_PRICE."
+            echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
+        fi
+        ;;
 
-            if [[ -z "$val1" && -z "$val2" ]]; then
-                echo "ℹ️  No input provided. Flags remain unchanged."
-            else
-                valid=true
-                for flag in "$val1" "$val2"; do
-                    if [[ -n "$flag" && "$flag" != "true" && "$flag" != "false" ]]; then
-                        echo "❌  Invalid value: '$flag'. Allowed values are 'true' or 'false'."
-                        valid=false
-                    fi
-                done
+    7)
+        read -p "🔧  EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API (true/false, default: true): " val1
+        read -p "🔧  EXECUTOR_PROCESS_ORDERS_API_ENABLED (true/false, default: true): " val2
 
-                if [[ "$valid" == true ]]; then
-                    export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${val1:-true}
-                    export EXECUTOR_PROCESS_ORDERS_API_ENABLED=${val2:-true}
-                    echo "✅  Order processing flags updated."
-                    echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
+        if [[ -z "$val1" && -z "$val2" ]]; then
+            echo "ℹ️  No input provided. Flags remain unchanged."
+        else
+            valid=true
+            for flag in "$val1" "$val2"; do
+                if [[ -n "$flag" && "$flag" != "true" && "$flag" != "false" ]]; then
+                    echo "❌  Invalid value: '$flag'. Allowed values are 'true' or 'false'."
+                    valid=false
                 fi
-            fi
-            ;;
+            done
 
-        8)
-            read -p "🔑  Enter new PRIVATE_KEY_LOCAL (without 0x): " pk
-            pk=$(echo "$pk" | sed 's/^0x//' | xargs)
-            if [[ -n "$pk" ]]; then
-                export PRIVATE_KEY_LOCAL=$pk
-                echo "✅  Private key updated."
+            if [[ "$valid" == true ]]; then
+                export EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${val1:-true}
+                export EXECUTOR_PROCESS_ORDERS_API_ENABLED=${val2:-true}
+                save_env_file
+                echo "✅  Order processing flags updated."
                 echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
-            else
-                echo "ℹ️  No input provided. Private key unchanged."
-            fi;;
-        11)
-            echo "🔁  Restarting executor..."
-            rebuild_rpc_endpoints
-            create_systemd_unit
-            if sudo systemctl restart t3rn-executor; then
-                echo "✅  Executor restarted successfully."
-            else
-                echo "❌  Failed to restart executor. Please check the systemctl logs."
-            fi;;
-        12)
-            echo "🔍  Checking Executor status using systemd..."
-            sleep 0.3
-            systemctl status t3rn-executor --no-pager || echo "❌  Executor is not running.";;
+            fi
+        fi
+        ;;
 
-        9) configure_disabled_networks;;
-        10) enable_networks;;
+    8)
+        read -p "🔑  Enter new PRIVATE_KEY_LOCAL: " pk
+        pk=$(echo "$pk" | sed 's/^0x//' | xargs)
+        if [[ -n "$pk" ]]; then
+            export PRIVATE_KEY_LOCAL=$pk
+            save_env_file
+            echo "✅  Private key updated."
+            echo "🔄  Restart required to apply changes. Use option [11] in the main menu."
+        else
+            echo "ℹ️  No input provided. Private key unchanged."
+        fi
+        ;;
 
-        0)
-            echo "👋  Exiting. Goodbye!"
-            exit 0;;
-        *) echo "❌  Invalid option. Please try again.";;
+    11)
+        echo "🔁 Restarting executor..."
+        if sudo systemctl restart t3rn-executor; then
+            echo "✅ Executor restarted successfully."
+        else
+            echo "❌ Failed to restart executor. Please check the systemctl logs."
+        fi
+        ;;
+
+    12)
+        echo "🔍  Checking Executor status using systemd..."
+        sleep 0.3
+        systemctl status t3rn-executor --no-pager || echo "❌  Executor is not running."
+        ;;
+
+    9) configure_disabled_networks ;;
+    10) enable_networks ;;
+
+    0)
+        echo "👋  Exiting. Goodbye!"
+        exit 0
+        ;;
+    *) echo "❌  Invalid option. Please try again." ;;
     esac
 done
