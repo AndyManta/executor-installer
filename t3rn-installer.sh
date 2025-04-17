@@ -107,6 +107,16 @@ declare -A network_names=(
     ["mont"]="Monad Testnet"
 )
 
+declare -A executor_ids=(
+    ["l2rn"]="l2rn"
+    ["arbt"]="arbitrum-sepolia"
+    ["bast"]="base-sepolia"
+    ["blst"]="blast-sepolia"
+    ["opst"]="optimism-sepolia"
+    ["unit"]="unichain-sepolia"
+    ["mont"]="monad-testnet"
+)
+
 install_executor() {
     while true; do
         echo ""
@@ -335,7 +345,7 @@ PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
 
 PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
 ENABLED_NETWORKS=${ENABLED_NETWORKS:-arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet}
-NETWORKS_DISABLED=${NETWORKS_DISABLED:-""}
+NETWORKS_DISABLED=${NETWORKS_DISABLED:-arbitrum,base,optimism}
 
 RPC_ENDPOINTS='${RPC_ENDPOINTS}'
 EOF
@@ -471,21 +481,19 @@ configure_disabled_networks() {
     local i=1
     declare -A index_to_key
 
-    for key in "${!network_names[@]}"; do
-        full_name="${network_names[$key]}"
-        kebab_case=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
-
-        if [[ -n "${disabled_set[$kebab_case]}" ]]; then
+    for key in "${!executor_ids[@]}"; do
+        exec_name="${executor_ids[$key]}"
+        if [[ -n "${disabled_set[$exec_name]}" ]]; then
             continue
         fi
 
-        echo "$i) $full_name"
+        echo "$i) ${network_names[$key]}"
         index_to_key[$i]="$key"
         ((i++))
     done
 
     echo ""
-    read -p "➡️  Enter numbers of networks to disable: (e.g. 1 2 3): " input
+    read -p "➡️  Enter numbers of networks to disable (e.g. 1 2 3): " input
 
     if [[ -z "$input" ]]; then
         echo "ℹ️  No input provided. No networks disabled."
@@ -500,43 +508,29 @@ configure_disabled_networks() {
     done
 
     declare -A seen
-    local disabled_networks=()
-
     for d in $input; do
-        if [[ -z "${seen[$d]}" ]]; then
-            seen[$d]=1
-            full_name="${network_names[${index_to_key[$d]}]}"
-            kebab_case=$(echo "$full_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
-            disabled_set[$kebab_case]=1
-        fi
+        key="${index_to_key[$d]}"
+        exec_name="${executor_ids[$key]}"
+        disabled_set[$exec_name]=1
     done
 
-    if [[ ${#disabled_set[@]} -eq 0 ]]; then
-        echo "ℹ️  No valid selections made. No networks disabled."
-    else
+    final_disabled=()
+    for net in "${!disabled_set[@]}"; do
+        final_disabled+=("$net")
+    done
 
-        final_disabled=()
-        for net in "${!disabled_set[@]}"; do
-            final_disabled+=("$net")
-        done
+    export NETWORKS_DISABLED="$(IFS=','; echo "${final_disabled[*]}")"
 
-        export NETWORKS_DISABLED="$(
-            IFS=','
-            echo "${final_disabled[*]}"
-        )"
+    echo -e "\n✅  Networks to be disabled:"
+    for net in "${final_disabled[@]}"; do
+        echo "   • $net"
+    done
 
-        echo -e "\n✅  Networks to be disabled:"
-        for net in "${final_disabled[@]}"; do
-            readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
-            echo "   • $readable_name"
-        done
-
-        rebuild_enabled_networks
-        save_env_file
-
-        echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
-    fi
+    rebuild_enabled_networks
+    save_env_file
+    echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
+
 enable_networks() {
     echo -e "\n✅  Enable Networks"
 
@@ -551,8 +545,7 @@ enable_networks() {
     local i=1
     declare -A index_to_network
     for net in "${disabled[@]}"; do
-        readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
-        echo "$i) $readable_name"
+        echo "$i) $net"
         index_to_network[$i]="$net"
         ((i++))
     done
@@ -565,16 +558,12 @@ enable_networks() {
         return
     fi
 
-    local max_index=${#index_to_network[@]}
-    for d in $input; do
-        if ! is_number "$d" || [[ -z "${index_to_network[$d]}" ]]; then
-            echo "❌ Invalid input: '$d'. Allowed: numbers from 1 to $max_index separated by spaces."
-            return
-        fi
-    done
-
     declare -A selected
     for d in $input; do
+        if ! is_number "$d" || [[ -z "${index_to_network[$d]}" ]]; then
+            echo "❌ Invalid input: '$d'."
+            return
+        fi
         selected[$d]=1
     done
 
@@ -592,17 +581,15 @@ enable_networks() {
         unset NETWORKS_DISABLED
         echo "✅  All networks enabled."
     else
-        export NETWORKS_DISABLED="$(
-            IFS=','
-            echo "${remaining[*]}"
-        )"
+        export NETWORKS_DISABLED="$(IFS=','; echo "${remaining[*]}")"
     fi
+
     rebuild_enabled_networks
     save_env_file
+
     echo -e "\n✅  Networks that were enabled:"
     for net in "${reenabled[@]}"; do
-        readable_name=$(echo "$net" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
-        echo "   • $readable_name"
+        echo "   • $net"
     done
 
     echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
@@ -617,10 +604,10 @@ rebuild_enabled_networks() {
     done
 
     local enabled_networks=()
-    for key in "${!network_names[@]}"; do
-        id_name=$(echo "${network_names[$key]}" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
-        if [[ -z "${disabled_map[$id_name]}" ]]; then
-            enabled_networks+=("$id_name")
+    for key in "${!executor_ids[@]}"; do
+        executor_id="${executor_ids[$key]}"
+        if [[ -z "${disabled_map[$executor_id]}" ]]; then
+            enabled_networks+=("$executor_id")
         fi
     done
 
