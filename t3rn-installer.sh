@@ -105,6 +105,10 @@ declare -A network_names=(
     ["opst"]="Optimism Sepolia"
     ["unit"]="Unichain Sepolia"
     ["mont"]="Monad Testnet"
+    ["arbm"]="Arbitrum Mainnet"
+    ["basm"]="Base Mainnet"
+    ["opsm"]="Optimism Mainnet"
+    ["seit"]="Sei Testnet"
 )
 
 declare -A executor_ids=(
@@ -115,6 +119,10 @@ declare -A executor_ids=(
     ["opst"]="optimism-sepolia"
     ["unit"]="unichain-sepolia"
     ["mont"]="monad-testnet"
+    ["arbm"]="arbitrum"
+    ["basm"]="base"
+    ["opsm"]="optimism"
+    ["seit"]="sei-testnet"
 )
 
 install_executor() {
@@ -345,7 +353,7 @@ PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
 
 PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
 ENABLED_NETWORKS=${ENABLED_NETWORKS:-arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet}
-NETWORKS_DISABLED=${NETWORKS_DISABLED:-arbitrum,base,optimism}
+NETWORKS_DISABLED=${NETWORKS_DISABLED:-arbitrum,base,optimism,sei-testnet}
 
 RPC_ENDPOINTS='${RPC_ENDPOINTS}'
 EOF
