@@ -95,6 +95,7 @@ declare -A rpcs=(
     ["opst"]="https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io"
     ["unit"]="https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org"
     ["mont"]="https://testnet-rpc.monad.xyz"
+    ["seit"]="https://evm-rpc-testnet.sei-apis.com"
 )
 
 declare -A network_names=(
@@ -255,7 +256,7 @@ install_executor() {
 
     export PRIVATE_KEY_LOCAL=$private_key
     rebuild_rpc_endpoints
-    rebuild_enabled_networks
+    rebuild_network_lists
     if ! validate_config_before_start; then
         echo "❌ Aborting due to invalid configuration."
         return
@@ -336,6 +337,7 @@ validate_config_before_start() {
 
 save_env_file() {
     mkdir -p "$HOME/t3rn"
+    rebuild_network_lists
     cat >"$ENV_FILE" <<EOF
 ENVIRONMENT=${ENVIRONMENT:-testnet}
 LOG_LEVEL=${LOG_LEVEL:-debug}
@@ -352,8 +354,8 @@ EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=${EXECUTOR_MIN_BALANCE_THRESHOLD_ETH:-1}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
 
 PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
-ENABLED_NETWORKS=${ENABLED_NETWORKS:-arbitrum-sepolia,base-sepolia,optimism-sepolia,l2rn,blast-sepolia,unichain-sepolia,monad-testnet}
-NETWORKS_DISABLED=${NETWORKS_DISABLED:-arbitrum,base,optimism,sei-testnet}
+ENABLED_NETWORKS=${ENABLED_NETWORKS}
+NETWORKS_DISABLED=${NETWORKS_DISABLED}
 
 RPC_ENDPOINTS='${RPC_ENDPOINTS}'
 EOF
@@ -403,7 +405,8 @@ rebuild_rpc_endpoints() {
         blst: $blst,
         opst: $opst,
         unit: $unit,
-        mont: $mont
+        mont: $mont,
+        seit: $seit
     }' \
             --argjson l2rn "$(printf '%s\n' ${rpcs[l2rn]} | jq -R . | jq -s .)" \
             --argjson arbt "$(printf '%s\n' ${rpcs[arbt]} | jq -R . | jq -s .)" \
@@ -411,7 +414,8 @@ rebuild_rpc_endpoints() {
             --argjson blst "$(printf '%s\n' ${rpcs[blst]} | jq -R . | jq -s .)" \
             --argjson opst "$(printf '%s\n' ${rpcs[opst]} | jq -R . | jq -s .)" \
             --argjson unit "$(printf '%s\n' ${rpcs[unit]} | jq -R . | jq -s .)" \
-            --argjson mont "$(printf '%s\n' ${rpcs[mont]} | jq -R . | jq -s .)"
+            --argjson mont "$(printf '%s\n' ${rpcs[mont]} | jq -R . | jq -s .)" \
+            --argjson seit "$(printf '%s\n' ${rpcs[seit]} | jq -R . | jq -s .)"
     )
 
     export RPC_ENDPOINTS="$rpc_json"
@@ -421,7 +425,7 @@ edit_rpc_menu() {
     echo -e "\n🌐  Edit RPC Endpoints"
     local changes_made=false
 
-    for net in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont"; do
+    for net in "l2rn" "arbt" "bast" "blst" "opst" "unit" "mont" "seit"; do
         name=${network_names[$net]}
         echo "🔗  Enter new RPC URL(s) for $name, separated by space (or press Enter to keep current):"
         echo "    Current: ${rpcs[$net]}"
@@ -534,7 +538,7 @@ configure_disabled_networks() {
         echo "   • $net"
     done
 
-    rebuild_enabled_networks
+    rebuild_network_lists
     save_env_file
     echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
@@ -592,7 +596,7 @@ enable_networks() {
         export NETWORKS_DISABLED="$(IFS=','; echo "${remaining[*]}")"
     fi
 
-    rebuild_enabled_networks
+    rebuild_network_lists
     save_env_file
 
     echo -e "\n✅  Networks that were enabled:"
@@ -603,26 +607,33 @@ enable_networks() {
     echo -e "\n🔄  Restart required to apply changes. Use option [11] in the main menu."
 }
 
-rebuild_enabled_networks() {
-    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
+rebuild_network_lists() {
+    local default_disabled=(arbitrum base optimism sei-testnet)
 
-    declare -A disabled_map=()
+    if [[ -z "$NETWORKS_DISABLED" ]]; then
+        NETWORKS_DISABLED="$(IFS=','; echo "${default_disabled[*]}")"
+    fi
+
+    NETWORKS_DISABLED=$(echo "$NETWORKS_DISABLED" | tr ',' '\n' | awk '!seen[$0]++' | paste -sd, -)
+
+    declare -A disabled_map
+    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
     for net in "${disabled_arr[@]}"; do
-        disabled_map[$net]=1
+        disabled_map["$net"]=1
     done
 
+    declare -A seen
     local enabled_networks=()
+
     for key in "${!executor_ids[@]}"; do
         executor_id="${executor_ids[$key]}"
-        if [[ -z "${disabled_map[$executor_id]}" ]]; then
+        if [[ -z "${disabled_map[$executor_id]}" && -z "${seen[$executor_id]}" ]]; then
             enabled_networks+=("$executor_id")
+            seen[$executor_id]=1
         fi
     done
 
-    export ENABLED_NETWORKS="$(
-        IFS=','
-        echo "${enabled_networks[*]}"
-    )"
+    ENABLED_NETWORKS="$(IFS=','; echo "${enabled_networks[*]}")"
 }
 
 while true; do
