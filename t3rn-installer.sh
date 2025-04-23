@@ -290,7 +290,7 @@ validate_config_before_start() {
         fi
     fi
 
-    if [[ -z "$ENABLED_NETWORKS" ]]; then
+    if [[ -z "$EXECUTOR_ENABLED_NETWORKS" ]]; then
         echo "❌ ENABLED_NETWORKS is not set."
         error=true
     fi
@@ -354,7 +354,7 @@ EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=${EXECUTOR_MIN_BALANCE_THRESHOLD_ETH:-1}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
 
 PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
-ENABLED_NETWORKS=${ENABLED_NETWORKS}
+EXECUTOR_ENABLED_NETWORKS=${EXECUTOR_ENABLED_NETWORKS}
 NETWORKS_DISABLED=${NETWORKS_DISABLED}
 
 RPC_ENDPOINTS='${RPC_ENDPOINTS}'
@@ -633,7 +633,7 @@ rebuild_network_lists() {
         fi
     done
 
-    ENABLED_NETWORKS="$(IFS=','; echo "${enabled_networks[*]}")"
+    EXECUTOR_ENABLED_NETWORKS="$(IFS=','; echo "${enabled_networks[*]}")"
 }
 
 while true; do
