@@ -608,7 +608,7 @@ enable_networks() {
 }
 
 rebuild_network_lists() {
-    local default_disabled=(arbitrum base optimism sei-testnet)
+    local default_disabled=(arbitrum base optimism sei-testnet blast-sepolia)
 
     if [[ -z "$NETWORKS_DISABLED" ]]; then
         NETWORKS_DISABLED="$(IFS=','; echo "${default_disabled[*]}")"
