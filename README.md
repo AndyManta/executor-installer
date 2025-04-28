@@ -17,7 +17,7 @@ This script provides an interactive CLI interface for managing the T3rn Executor
 
 ---
 
-#### 📥 Quick Start
+### 📥 Quick Start
 
 #### Run:
 ```bash
