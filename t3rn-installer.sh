@@ -584,7 +584,6 @@ edit_rpc_menu() {
         executor_id="${executor_ids[$net]}"
 
         if [[ -n "${disabled_lookup[$executor_id]}" ]]; then
-            echo "🚫 Skipping disabled network: ${network_names[$net]}"
             continue
         fi
 
@@ -611,7 +610,7 @@ edit_rpc_menu() {
                         --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
 
                     local actual_chain_id_hex=$(echo "$response" | jq -r '.result')
-                    
+
                     if [[ "$actual_chain_id_hex" == "null" || -z "$actual_chain_id_hex" ]]; then
                         echo "❌ Invalid or empty response from RPC: $url"
                         invalid=true
