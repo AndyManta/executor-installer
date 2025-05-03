@@ -166,7 +166,7 @@ wait_for_wallet_log_and_save() {
     local timeout=10
 
     while true; do
-        address=$(journalctl -u t3rn-installer --no-pager -n 50 -r |
+        address=$(journalctl -u t3rn-executor --no-pager -n 50 -r |
             grep '✅ Wallet loaded' |
             sed -n 's/.*\({.*\)/\1/p' |
             jq -r '.address' 2>/dev/null |
@@ -272,8 +272,8 @@ run_executor_install() {
         return
     fi
 
-    sudo systemctl disable --now t3rn-installer.service 2>/dev/null
-    sudo rm -f /etc/systemd/system/t3rn-installer.service
+    sudo systemctl disable --now t3rn-executor.service 2>/dev/null
+    sudo rm -f /etc/systemd/system/t3rn-executor.service
     sudo systemctl daemon-reload
     sleep 1
     create_systemd_unit
@@ -383,7 +383,7 @@ EOF
 }
 
 create_systemd_unit() {
-    local unit_path="/etc/systemd/system/t3rn-installer.service"
+    local unit_path="/etc/systemd/system/t3rn-executor.service"
     local exec_path="$HOME/t3rn/executor/executor/bin/executor"
     sudo bash -c "cat > $unit_path" <<EOF
 [Unit]
@@ -404,8 +404,8 @@ WantedBy=multi-user.target
 EOF
 
     sudo systemctl daemon-reload
-    sudo systemctl enable --now t3rn-installer
-    systemctl is-active --quiet t3rn-installer && echo "🚀 Executor is running." || echo "❌ Executor failed to start."
+    sudo systemctl enable --now t3rn-executor
+    systemctl is-active --quiet t3rn-executor && echo "🚀 Executor is running." || echo "❌ Executor failed to start."
 }
 
 rebuild_network_lists() {
@@ -515,7 +515,7 @@ configure_disabled_networks() {
     done
     echo ""
     if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-        if sudo systemctl restart t3rn-installer; then
+        if sudo systemctl restart t3rn-executor; then
             echo "✅ Executor restarted."
         else
             echo "❌ Failed to restart executor."
@@ -600,7 +600,7 @@ enable_networks() {
     done
     echo ""
     if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-        if sudo systemctl restart t3rn-installer; then
+        if sudo systemctl restart t3rn-executor; then
             echo "✅ Executor restarted."
         else
             echo ""
@@ -622,8 +622,8 @@ uninstall_t3rn() {
     echo "🗑️ Uninstalling..."
 
     sudo rm -f "$ENV_FILE"
-    sudo systemctl disable --now t3rn-installer.service 2>/dev/null
-    sudo rm -f /etc/systemd/system/t3rn-installer.service
+    sudo systemctl disable --now t3rn-executor.service 2>/dev/null
+    sudo rm -f /etc/systemd/system/t3rn-executor.service
     sudo systemctl daemon-reload
 
     for dir in "$HOME/t3rn" "$HOME/executor"; do
@@ -743,7 +743,7 @@ edit_rpc_menu() {
         save_env_file
         echo "✅ RPC endpoints updated and saved."
         if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-            if sudo systemctl restart t3rn-installer; then
+            if sudo systemctl restart t3rn-executor; then
                 echo ""
                 echo "✅ Executor restarted."
             else
@@ -992,8 +992,8 @@ show_balance_change_history() {
 }
 
 view_executor_logs() {
-    if systemctl list-units --type=service --all | grep -q 't3rn-installer.service'; then
-        sudo journalctl -u t3rn-installer -f --no-pager --output=cat
+    if systemctl list-units --type=service --all | grep -q 't3rn-executor.service'; then
+        sudo journalctl -u t3rn-executor -f --no-pager --output=cat
     else
         echo "❌ Executor not found. It might not be installed or has been removed."
         echo ""
@@ -1025,7 +1025,7 @@ main_menu() {
         5)
             clear
             echo "🔁 Restarting executor..."
-            if sudo systemctl restart t3rn-installer; then
+            if sudo systemctl restart t3rn-executor; then
                 echo "✅ Executor restarted." && sleep 0.35
             else
                 echo "❌ Failed to restart executor." && echo "" && sleep 0.35
@@ -1111,7 +1111,7 @@ menu_configuration() {
                 save_env_file
                 echo "✅ New gas price set to $EXECUTOR_MAX_L3_GAS_PRICE."
                 if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-                    if sudo systemctl restart t3rn-installer; then
+                    if sudo systemctl restart t3rn-executor; then
                         echo "✅ Executor restarted."
                     else
                         echo ""
@@ -1137,7 +1137,7 @@ menu_configuration() {
                 save_env_file
                 echo "✅ Order API flags updated."
                 if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-                    if sudo systemctl restart t3rn-installer; then
+                    if sudo systemctl restart t3rn-executor; then
                         echo "✅ Executor restarted."
                     else
                         echo ""
@@ -1162,7 +1162,7 @@ menu_configuration() {
                 save_env_file
                 echo "✅ Private key updated."
                 if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-                    if sudo systemctl restart t3rn-installer; then
+                    if sudo systemctl restart t3rn-executor; then
                         echo "✅ Executor restarted."
                     else
                         echo ""
