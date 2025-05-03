@@ -58,15 +58,15 @@ Executor is automatically configured as a `systemd` service.
 To view the “Executor” logs, you can select the option in the main script menu “[2] 🔎 View Executor Logs” or use the command:
 
 ```bash
-sudo journalctl -u executor-installer -f
+sudo journalctl -u t3rn-executor -f
 ```
 
 To manually uninstall the systemd service, you can use the following commands:
 
 ```bash
-sudo systemctl stop executor-installer
-sudo systemctl disable executor-installer
-sudo rm -f /etc/systemd/system/executor-installer.service
+sudo systemctl stop t3rn-executor
+sudo systemctl disable t3rn-executor
+sudo rm -f /etc/systemd/system/t3rn-executor.service
 ```
 ## 🖥️ Compatibility
 
