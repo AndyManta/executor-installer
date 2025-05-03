@@ -1,41 +1,74 @@
-### ⚙️ T3rn Executor Installer
+### ⚙️ Executor Installer
 
 > **Note:** This is an **unofficial Bash-based installer** for the [T3rn Executor](https://github.com/t3rn/executor-release), designed to simplify installation and configuration.  
 > It does **not** modify or replace any official binaries or releases from the T3rn team.
 
 ---
+## 📦 Installation
 
-### 🚀 What It Does
-
-This script provides an interactive CLI interface for managing the T3rn Executor with features like:
-
-- Installing latest or specific executor versions
-- Automatic `.env` generation with RPCs, gas limits, keys, flags
-- Live systemd integration
-- Enable/Disable supported networks
-- Log monitoring, restarting, and full uninstall
-
----
-
-### 📥 Quick Start
-
-#### Run:
-```bash
-bash <(wget -qO - https://raw.githubusercontent.com/Zikett/t3rn-installer/main/t3rn-installer.sh)
-```
----
-
-### ✅ Requirements
-
-These tools must be available (installed automatically if missing):
+To run the script, paste this command into your Linux terminal:
 
 ```bash
-sudo apt install -y sudo curl wget tar jq lsof nano
+bash <(wget -qO - https://raw.githubusercontent.com/Zikett/executor-installer/main/executor-installer.sh)
 ```
+
+Follow the interactive menu to install and configure the Executor.
 
 ---
 
-### 🖥️ Compatibility
+## 🧪 Requirements
+
+The script automatically installs missing dependencies. Required tools:
+
+- `sudo`, `curl`, `wget`, `tar`
+- `jq`, `lsof`, `nano`
+
+---
+
+## ⚡ Features
+
+- Install latest or specific versions of the Executor.
+- One-command uninstall option.
+- Configure supported networks.
+- Automatically sets up systemd service for background operation.
+- Manage RPC endpoints per networks.
+- Secure `.env` file handling.
+- Wallet balance history and view live transactions.
+- Interactive terminal UI.
+
+---
+
+## 📁 Environment Configuration
+
+The script generates a `.env` file in `$HOME/t3rn/.env` containing all Executor settings including:
+
+- Enabled networks
+- Custom RPCs
+- Executor flags
+- Local private key
+
+⚠️ The private key is stored locally.
+
+---
+
+## 📜 Systemd Integration
+
+Executor is automatically configured as a `systemd` service.
+
+To view the “Executor” logs, you can select the option in the main script menu “[2] 🔎 View Executor Logs” or use the command:
+
+```bash
+sudo journalctl -u executor-installer -f
+```
+
+To manually uninstall the systemd service, you can use the following commands:
+
+```bash
+sudo systemctl stop executor-installer
+sudo systemctl disable executor-installer
+sudo rm -f /etc/systemd/system/executor-installer.service
+```
+## 🖥️ Compatibility
 
 Tested and confirmed to work on:
 
@@ -50,58 +83,13 @@ Tested and confirmed to work on:
 
 ---
 
-### 🔧 Features Overview
-
-- 🧠 **Interactive Menu System**
-- 🔧 Configure `.env` with dynamic values
-- ⚙️ Systemd auto-setup and service management
-- 🔐 Private key prompt & validation
-- 🌐 RPC editing per supported network
-- 🔁 Enable/Disable network sets
-- ⛽ Set max gas price
-- ✅ Validate config before start
-- 📜 View real-time logs
-- 🔄 Restart service
-- 🧹 Full uninstall
-
----
-
-### 🧩 Menu Walkthrough
-
-#### 📦 Installation
-- **[1] Install / Update Executor**  
-  Choose version, enter private key, build config, and install.
-
-- **[2] Uninstall Installer & Executor**  
-  Fully remove the executor, its config, directories, and systemd service.
-
-#### 🛠️ Configuration
-- **[3] View Logs** — Show live logs from `journalctl`  
-- **[4] Show Configured RPCs**  
-- **[5] Edit RPC Endpoints**  
-- **[6] Set Max L3 Gas Price**  
-- **[7] Configure API Flags** (`true/false`)  
-- **[8] Update Private Key**  
-- **[9] Disable Networks**  
-- **[10] Enable Networks**
-
-#### 🔁 Executor Control
-- **[11] Restart Executor** — Restart the systemd service  
-- **[12] View Status** — Run `systemctl status` on the service  
-
-#### ❌ Exit
-- **[0] Exit Menu**
-
----
-
-### 🔐 Security Notes
+## 🔐 Security Notes
 
 - Your **private key** is stored in a `.env` file in `~/t3rn/`  
-- Ensure your system is secure and restrict access to this file (`chmod 600 ~/.t3rn/.env`)
 - This script performs **no remote logging**, tracking, or external data submission
 
 ---
 
-### 📄 License
+## 📄 License
 
 [MIT License](./LICENSE)
