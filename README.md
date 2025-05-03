@@ -14,6 +14,8 @@ bash <(wget -qO - https://raw.githubusercontent.com/Zikett/executor-installer/ma
 
 Follow the interactive menu to install and configure the Executor.
 
+![executor-installer](https://github.com/user-attachments/assets/41749a37-1545-4d1c-9e65-6635c988822a)
+
 ---
 
 ## 🧪 Requirements
