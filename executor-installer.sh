@@ -32,21 +32,33 @@ install_package() {
     fi
 }
 
-initialize_default_rpcs() {
-    unset rpcs
-    declare -gA rpcs=(
-        ["l2rn"]="https://b2n.rpc.caldera.xyz/http"
-        ["arbt"]="https://arbitrum-sepolia-rpc.publicnode.com https://sepolia-rollup.arbitrum.io/rpc"
-        ["bast"]="https://base-sepolia-rpc.publicnode.com https://sepolia.base.org"
-        ["blst"]="https://rpc.ankr.com/blast_testnet_sepolia https://sepolia.blast.io"
-        ["opst"]="https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io"
-        ["unit"]="https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org"
-        ["mont"]="https://testnet-rpc.monad.xyz"
-        ["seit"]="https://evm-rpc-testnet.sei-apis.com"
-    )
+initialize_dynamic_network_data() {
+    unset network_names executor_ids expected_chain_ids rpcs
+    declare -gA network_names executor_ids expected_chain_ids rpcs
+
+    for key in "${!networks[@]}"; do
+        IFS="|" read -r name chain_id urls executor_id <<<"${networks[$key]}"
+        network_names[$key]="$name"
+        executor_ids[$key]="${executor_id:-$key}"
+        expected_chain_ids[$key]="$chain_id"
+        rpcs[$key]="$urls"
+    done
 }
 
-initialize_default_rpcs
+declare -A networks=(
+  [l2rn]="B2N Testnet|334|https://b2n.rpc.caldera.xyz/http|l2rn"
+  [arbt]="Arbitrum Sepolia|421614|https://arbitrum-sepolia-rpc.publicnode.com https://sepolia-rollup.arbitrum.io/rpc|arbitrum-sepolia"
+  [bast]="Base Sepolia|84532|https://base-sepolia-rpc.publicnode.com https://sepolia.base.org|base-sepolia"
+  [blst]="Blast Sepolia|168587773|https://rpc.ankr.com/blast_testnet_sepolia https://sepolia.blast.io|blast-sepolia"
+  [opst]="Optimism Sepolia|11155420|https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io|optimism-sepolia"
+  [unit]="Unichain Sepolia|1301|https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org|unichain-sepolia"
+  [mont]="Monad Testnet|10143|https://testnet-rpc.monad.xyz|monad-testnet"
+  [seit]="Sei Testnet|1328|https://evm-rpc-testnet.sei-apis.com|sei-testnet"
+  [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
+  [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
+  [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
+
+)
 
 load_env_file() {
     if [[ -f "$ENV_FILE" ]]; then
@@ -71,40 +83,58 @@ load_env_file() {
             fi
         else
             echo "ℹ️ No RPC_ENDPOINTS found. Using defaults."
-            initialize_default_rpcs
+            initialize_dynamic_network_data
         fi
     fi
 }
 
 required_tools=(sudo curl wget tar jq lsof nano)
-missing_tools=()
-installed_tools=()
 
-for tool in "${required_tools[@]}"; do
-    if command -v "$tool" &>/dev/null; then
-        installed_tools+=("$tool")
-    else
-        missing_tools+=("$tool")
-    fi
-done
+if command -v apt &>/dev/null; then
+    PKG_INSTALL="sudo apt update && sudo apt install -y"
+elif command -v yum &>/dev/null; then
+    PKG_INSTALL="sudo yum install -y"
+else
+    echo "❌ Supported package manager (apt or yum) not found. Cannot install dependencies."
+    exit 1
+fi
 
 if ! command -v sudo &>/dev/null; then
-    echo "⚠️  'sudo' is required."
+    echo "⚠️  'sudo' is required but not installed."
     if confirm_prompt "📦  Install 'sudo' now?"; then
-        install_package "sudo"
+        if command -v apt &>/dev/null; then
+            apt update && apt install -y sudo || {
+                echo "❌ Failed to install 'sudo'. Exiting."
+                exit 1
+            }
+        elif command -v yum &>/dev/null; then
+            yum install -y sudo || {
+                echo "❌ Failed to install 'sudo'. Exiting."
+                exit 1
+            }
+        fi
     else
         echo "❌ Cannot continue without 'sudo'. Exiting."
         exit 1
     fi
 fi
 
-for tool in "${missing_tools[@]}"; do
-    echo "❌ $tool is missing."
-    if confirm_prompt "📦 Install '$tool' now?"; then
-        install_package "$tool"
-    else
-        echo "❌ '$tool' is required. Exiting."
-        exit 1
+for tool in "${required_tools[@]}"; do
+    [[ "$tool" == "sudo" ]] && continue
+    if ! command -v "$tool" &>/dev/null; then
+        echo "⚠️  '$tool' is not installed."
+        if confirm_prompt "📦 Install '$tool' now?"; then
+            if eval "$PKG_INSTALL $tool"; then
+                echo ""
+                echo "✅ '$tool' installed."
+            else
+                echo "❌ Failed to install '$tool'. Exiting."
+                exit 1
+            fi
+        else
+            echo "❌ '$tool' is required. Exiting."
+            exit 1
+        fi
     fi
 done
 
@@ -114,49 +144,12 @@ get_executor_wallet_address() {
     grep -E '^\#?\s*EXECUTOR_WALLET_ADDRESS=' "$HOME/t3rn/.env" | cut -d= -f2
 }
 
-declare -A network_names=(
-    ["l2rn"]="B2N Testnet"
-    ["arbt"]="Arbitrum Sepolia"
-    ["bast"]="Base Sepolia"
-    ["blst"]="Blast Sepolia"
-    ["opst"]="Optimism Sepolia"
-    ["unit"]="Unichain Sepolia"
-    ["mont"]="Monad Testnet"
-    ["arbm"]="Arbitrum Mainnet"
-    ["basm"]="Base Mainnet"
-    ["opsm"]="Optimism Mainnet"
-    ["seit"]="Sei Testnet"
-)
-
-declare -A executor_ids=(
-    ["l2rn"]="l2rn"
-    ["arbt"]="arbitrum-sepolia"
-    ["bast"]="base-sepolia"
-    ["blst"]="blast-sepolia"
-    ["opst"]="optimism-sepolia"
-    ["unit"]="unichain-sepolia"
-    ["mont"]="monad-testnet"
-    ["arbm"]="arbitrum"
-    ["basm"]="base"
-    ["opsm"]="optimism"
-    ["seit"]="sei-testnet"
-)
-
 rebuild_rpc_endpoints() {
-    rpc_json=$(
-        jq -n '{
-        l2rn: $l2rn, arbt: $arbt, bast: $bast, blst: $blst,
-        opst: $opst, unit: $unit, mont: $mont, seit: $seit
-    }' \
-            --argjson l2rn "$(printf '%s\n' ${rpcs[l2rn]:-} | jq -R . | jq -s .)" \
-            --argjson arbt "$(printf '%s\n' ${rpcs[arbt]:-} | jq -R . | jq -s .)" \
-            --argjson bast "$(printf '%s\n' ${rpcs[bast]:-} | jq -R . | jq -s .)" \
-            --argjson blst "$(printf '%s\n' ${rpcs[blst]:-} | jq -R . | jq -s .)" \
-            --argjson opst "$(printf '%s\n' ${rpcs[opst]:-} | jq -R . | jq -s .)" \
-            --argjson unit "$(printf '%s\n' ${rpcs[unit]:-} | jq -R . | jq -s .)" \
-            --argjson mont "$(printf '%s\n' ${rpcs[mont]:-} | jq -R . | jq -s .)" \
-            --argjson seit "$(printf '%s\n' ${rpcs[seit]:-} | jq -R . | jq -s .)"
-    )
+    local rpc_json=$(jq -n '{}')
+    for key in "${!rpcs[@]}"; do
+        urls_json=$(printf '%s\n' ${rpcs[$key]} | jq -R . | jq -s .)
+        rpc_json=$(echo "$rpc_json" | jq --arg k "$key" --argjson v "$urls_json" '. + {($k): $v}')
+    done
     export RPC_ENDPOINTS="$rpc_json"
 }
 
@@ -411,14 +404,7 @@ EOF
 rebuild_network_lists() {
     local default_disabled=(optimism arbitrum base)
 
-    if [[ ! -f "$ENV_FILE" ]]; then
-        NETWORKS_DISABLED="$(
-            IFS=','
-            echo "${default_disabled[*]}"
-        )"
-    else
-        NETWORKS_DISABLED="${NETWORKS_DISABLED:-}"
-    fi
+    NETWORKS_DISABLED="${NETWORKS_DISABLED:-$(IFS=','; echo "${default_disabled[*]}")}"
 
     NETWORKS_DISABLED=$(echo "$NETWORKS_DISABLED" | tr ',' '\n' | awk '!seen[$0]++' | paste -sd, -)
 
@@ -458,18 +444,26 @@ configure_disabled_networks() {
 
     local i=1
     declare -A index_to_key
-    for key in "${!executor_ids[@]}"; do
-        exec_name="${executor_ids[$key]}"
+for key in "${!executor_ids[@]}"; do
+    exec_name="${executor_ids[$key]}"
+    [[ -z "$exec_name" || -n "${already_disabled_lookup[$exec_name]}" ]] && continue
+    echo "[$i] ${network_names[$key]}"
+    index_to_key[$i]="$key"
+    ((i++))
+done
 
-        [[ -n "${already_disabled_lookup[$exec_name]}" ]] && continue
-        echo "[$i] ${network_names[$key]}"
-        index_to_key[$i]="$key"
-        ((i++))
-    done
+    echo ""
+    echo "[0] Back"
+    index_to_key[0]="BACK"
 
     echo ""
     read -p "➡️ Enter numbers: " input
     [[ -z "$input" ]] && echo "" && echo "ℹ️ No changes." && return
+
+    IFS=',' read -ra numbers <<<"$input"
+    for number in "${numbers[@]}"; do
+        [[ "${index_to_key[$number]}" == "BACK" ]] && return
+    done
 
     declare -A selected
     for d in $input; do
@@ -535,7 +529,7 @@ enable_networks() {
     local i=1
     declare -A index_to_network
 
-    for key in "${!executor_ids[@]}"; do
+    for key in "${!networks[@]}"; do
         exec_name="${executor_ids[$key]}"
         for disabled_net in "${disabled[@]}"; do
             if [[ "$exec_name" == "$disabled_net" ]]; then
@@ -548,8 +542,17 @@ enable_networks() {
     done
 
     echo ""
+    echo "[0] Back"
+    index_to_key[0]="BACK"
+
+    echo ""
     read -p "➡️ Enter numbers: " input
     [[ -z "$input" ]] && echo "" && echo "ℹ️ No changes." && return
+
+        IFS=',' read -ra numbers <<<"$input"
+    for number in "${numbers[@]}"; do
+        [[ "${index_to_key[$number]}" == "BACK" ]] && return
+    done
 
     declare -A selected
     for d in $input; do
@@ -591,7 +594,9 @@ enable_networks() {
     echo ""
     echo "✅ Networks enabled:"
     for exec_id in "${reenabled[@]}"; do
-        for key in "${!executor_ids[@]}"; do
+        for key in "${!networks[@]}"; do
+            executor_id="${executor_ids[$key]}"
+
             if [[ "${executor_ids[$key]}" == "$exec_id" ]]; then
                 echo "   • ${network_names[$key]}"
                 break
@@ -635,7 +640,6 @@ uninstall_t3rn() {
 
     sudo journalctl --rotate
     sudo journalctl --vacuum-time=1s
-    initialize_default_rpcs
 
     unset ENVIRONMENT LOG_LEVEL LOG_PRETTY EXECUTOR_PROCESS_BIDS_ENABLED \
         EXECUTOR_PROCESS_ORDERS_ENABLED EXECUTOR_PROCESS_CLAIMS_ENABLED \
@@ -647,6 +651,8 @@ uninstall_t3rn() {
     echo "✅ Executor removed."
 }
 
+initialize_dynamic_network_data
+
 edit_rpc_menu() {
     clear
     echo ""
@@ -654,41 +660,23 @@ edit_rpc_menu() {
     echo ""
     local changes_made=false
 
-    declare -A expected_chain_ids=(
-        ["l2rn"]="334"
-        ["arbt"]="421614"
-        ["bast"]="84532"
-        ["blst"]="168587773"
-        ["opst"]="11155420"
-        ["unit"]="1301"
-        ["mont"]="10143"
-        ["seit"]="1328"
-    )
-
     IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
     declare -A disabled_lookup
     for dn in "${disabled_networks[@]}"; do
         disabled_lookup["$dn"]=1
     done
 
-    for net in l2rn arbt bast blst opst unit mont seit; do
-        executor_id="${executor_ids[$net]}"
+    for net in "${!networks[@]}"; do
+        IFS="|" read -r name chain_id urls executor_id <<<"${networks[$net]}"
+        [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
 
-        if [[ -n "${disabled_lookup[$executor_id]}" ]]; then
-            continue
-        fi
-
-        name=${network_names[$net]}
         echo "🔗 $name"
         echo "Current: ${rpcs[$net]}"
 
         while true; do
             read -p "➡️ Enter new RPC URLs (space-separated, or Enter to skip): " input
 
-            if [[ -z "$input" ]]; then
-                echo "ℹ️ Skipped updating $name."
-                break
-            fi
+            [[ -z "$input" ]] && echo "ℹ️ Skipped updating $name." && break
 
             local valid_urls=()
             local invalid=false
@@ -699,22 +687,19 @@ edit_rpc_menu() {
                     local response=$(curl --silent --max-time 5 -X POST "$url" \
                         -H "Content-Type: application/json" \
                         --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
-
+                    
                     local actual_chain_id_hex=$(echo "$response" | jq -r '.result')
-
-                    if [[ "$actual_chain_id_hex" == "null" || -z "$actual_chain_id_hex" ]]; then
-                        echo "❌ Invalid or empty response from RPC: $url"
+                    [[ "$actual_chain_id_hex" == "null" || -z "$actual_chain_id_hex" ]] && {
+                        echo "❌ Invalid or empty response: $url"
                         invalid=true
                         continue
-                    fi
+                    }
 
                     local actual_chain_id_dec=$((16#${actual_chain_id_hex#0x}))
-                    local expected_chain_id="${expected_chain_ids[$net]}"
-
-                    if [[ "$actual_chain_id_dec" == "$expected_chain_id" ]]; then
+                    if [[ "$actual_chain_id_dec" == "$chain_id" ]]; then
                         valid_urls+=("$url")
                     else
-                        echo "❌ Wrong ChainID: expected $expected_chain_id, got $actual_chain_id_dec."
+                        echo "❌ Wrong ChainID: expected $chain_id, got $actual_chain_id_dec."
                         invalid=true
                     fi
                 else
@@ -730,7 +715,6 @@ edit_rpc_menu() {
                 echo "✅ Updated $name."
                 break
             else
-                echo ""
                 echo "🚫 One or more URLs were invalid. Please re-enter RPCs for $name."
             fi
         done
@@ -1000,6 +984,23 @@ view_executor_logs() {
     fi
 }
 
+show_support_menu() {
+    clear
+    echo "🆘 Executor Installer - Help & Support"
+    echo ""
+    echo "📖 GitHub:"
+    echo "   https://github.com/Zikett/executor-installer"
+    echo ""
+    echo "💬 Telegram Support Chat:"
+    echo "   https://t.me/executor_support"
+    echo ""
+    echo "🌐 Discord nickname:"
+    echo "   Zikett"
+    echo ""
+    read -p "Press Enter to return to the main menu..."
+    clear
+}
+
 main_menu() {
     while true; do
         echo "===================================="
@@ -1012,10 +1013,11 @@ main_menu() {
         echo "[3] 🛠️ Configuration"
         echo "[4] 💰 Wallet Tools"
         echo "[5] 🔁 Restart Executor"
+        echo "[6] 🆘 Help & Support"
         echo ""
         echo "[0] Exit"
         echo ""
-        read -p "➡️ Select option [0-5]: " section
+        read -p "➡️ Select option [0-6]: " section
         echo ""
         clear
         case $section in
@@ -1032,6 +1034,7 @@ main_menu() {
             fi
             ;;
         4) menu_wallet_tools ;;
+        6) show_support_menu ;;
         0)
             echo "👋 Goodbye!"
             exit 0
@@ -1091,22 +1094,32 @@ menu_configuration() {
             echo ""
             echo "🌐 Current RPC Endpoints:"
             echo ""
-            if [[ ${#rpcs[@]} -eq 0 ]]; then
-                initialize_default_rpcs
-            fi
-            for net in "${!rpcs[@]}"; do
-                echo "- ${network_names[$net]}:"
-                for url in ${rpcs[$net]}; do
-                    echo "   • $url"
-                done
-                echo ""
-            done
+IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
+declare -A disabled_lookup
+for dn in "${disabled_networks[@]}"; do
+    disabled_lookup["$dn"]=1
+done
+
+for net in "${!networks[@]}"; do
+    executor_id="${executor_ids[$net]}"
+    [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+
+    echo "- ${network_names[$net]}:"
+    if [[ -n "${rpcs[$net]}" ]]; then
+        for url in ${rpcs[$net]}; do
+            echo "   • $url"
+        done
+    else
+        echo "   ⚠️ No RPC configured."
+    fi
+    echo ""
+done
             ;;
         3)
             clear
             echo ""
             gas=$(prompt_input "⛽ Enter new Max L3 gas price: ")
-            if [[ -n "$gas" && "$(is_number "$gas" && echo true)" == true ]]; then
+            if is_number "$gas"; then
                 export EXECUTOR_MAX_L3_GAS_PRICE=$gas
                 save_env_file
                 echo "✅ New gas price set to $EXECUTOR_MAX_L3_GAS_PRICE."
@@ -1160,9 +1173,11 @@ menu_configuration() {
             if [[ -n "$pk" ]]; then
                 export PRIVATE_KEY_LOCAL=$pk
                 save_env_file
+                echo ""
                 echo "✅ Private key updated."
                 if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
                     if sudo systemctl restart t3rn-executor; then
+                        echo ""
                         echo "✅ Executor restarted."
                     else
                         echo ""
