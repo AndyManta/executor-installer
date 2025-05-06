@@ -58,7 +58,6 @@ declare -A networks=(
   [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
   [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
   [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
-
 )
 
 load_env_file() {
@@ -147,10 +146,21 @@ get_executor_wallet_address() {
 
 rebuild_rpc_endpoints() {
     local rpc_json=$(jq -n '{}')
+    declare -A disabled_map
+    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
+    
+    for net in "${disabled_arr[@]}"; do
+        disabled_map["$net"]=1
+    done
+
     for key in "${!rpcs[@]}"; do
+        executor_id="${executor_ids[$key]}"
+        [[ -n "${disabled_map[$executor_id]}" ]] && continue
+
         urls_json=$(printf '%s\n' ${rpcs[$key]} | jq -R . | jq -s .)
         rpc_json=$(echo "$rpc_json" | jq --arg k "$key" --argjson v "$urls_json" '. + {($k): $v}')
     done
+
     export RPC_ENDPOINTS="$rpc_json"
 }
 
@@ -496,6 +506,7 @@ done
         echo "${final_disabled_unique[*]}"
     )"
     rebuild_network_lists
+    rebuild_rpc_endpoints
     save_env_file
 
     echo ""
@@ -550,13 +561,15 @@ enable_networks() {
     read -p "➡️ Enter numbers: " input
     [[ -z "$input" ]] && echo "" && echo "ℹ️ No changes." && return
 
-        IFS=',' read -ra numbers <<<"$input"
-    for number in "${numbers[@]}"; do
-        [[ "${index_to_key[$number]}" == "BACK" ]] && return
-    done
+    input=$(echo "$input" | tr -s ' ,')
+    IFS=' ' read -ra numbers <<<"${input//,/ }"
 
+    for number in "${numbers[@]}"; do
+        [[ "$number" == "0" ]] && return
+    done
+    
     declare -A selected
-    for d in $input; do
+    for d in "${numbers[@]}"; do
         if ! is_number "$d" || [[ -z "${index_to_network[$d]}" ]]; then
             echo "❌ Invalid input: '$d'."
             return
@@ -568,7 +581,7 @@ enable_networks() {
     local reenabled=()
     for idx in "${!index_to_network[@]}"; do
         if [[ -n "${selected[$idx]}" ]]; then
-            reenabled+=("${index_to_network[$idx]}")
+        reenabled+=("${index_to_network[$idx]}")
         else
             remaining+=("${index_to_network[$idx]}")
         fi
@@ -590,6 +603,7 @@ enable_networks() {
     fi
 
     rebuild_network_lists
+    rebuild_rpc_endpoints
     save_env_file
 
     echo ""
