@@ -54,6 +54,7 @@ declare -A networks=(
   [unit]="Unichain Sepolia|1301|https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org|unichain-sepolia"
   [mont]="Monad Testnet|10143|https://testnet-rpc.monad.xyz|monad-testnet"
   [seit]="Sei Testnet|1328|https://evm-rpc-testnet.sei-apis.com|sei-testnet"
+  [bsct]="BNB Testnet|97|https://bnb-testnet.api.onfinality.io/public https://bsc-testnet-rpc.publicnode.com|binance-testnet"
   [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
   [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
   [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
