@@ -1106,26 +1106,34 @@ menu_configuration() {
             echo ""
             echo "🌐 Current RPC Endpoints:"
             echo ""
-IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
-declare -A disabled_lookup
-for dn in "${disabled_networks[@]}"; do
-    disabled_lookup["$dn"]=1
-done
+    declare -A rpcs
+    while IFS="=" read -r key value; do
+        rpcs["$key"]="$value"
+    done < <(
+        echo "$RPC_ENDPOINTS" |
+        jq -r 'to_entries[] | "\(.key)=" + (.value | join(" "))'
+    )
 
-for net in "${!networks[@]}"; do
-    executor_id="${executor_ids[$net]}"
-    [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+    IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
+    declare -A disabled_lookup
+    for dn in "${disabled_networks[@]}"; do
+        disabled_lookup["$dn"]=1
+    done
 
-    echo "- ${network_names[$net]}:"
-    if [[ -n "${rpcs[$net]}" ]]; then
-        for url in ${rpcs[$net]}; do
-            echo "   • $url"
-        done
-    else
-        echo "   ⚠️ No RPC configured."
-    fi
-    echo ""
-done
+    for net in "${!networks[@]}"; do
+        executor_id="${executor_ids[$net]}"
+        [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+
+        echo "- ${network_names[$net]}:"
+        if [[ -n "${rpcs[$net]}" ]]; then
+            for url in ${rpcs[$net]}; do
+                echo "   • $url"
+            done
+        else
+            echo "   ⚠️ No RPC configured."
+        fi
+        echo ""
+    done
             ;;
         3)
             clear
