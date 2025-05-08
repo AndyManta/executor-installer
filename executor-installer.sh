@@ -46,18 +46,18 @@ initialize_dynamic_network_data() {
 }
 
 declare -A networks=(
-  [l2rn]="B2N Testnet|334|https://b2n.rpc.caldera.xyz/http|l2rn"
-  [arbt]="Arbitrum Sepolia|421614|https://arbitrum-sepolia-rpc.publicnode.com https://sepolia-rollup.arbitrum.io/rpc|arbitrum-sepolia"
-  [bast]="Base Sepolia|84532|https://base-sepolia-rpc.publicnode.com https://sepolia.base.org|base-sepolia"
-  [blst]="Blast Sepolia|168587773|https://rpc.ankr.com/blast_testnet_sepolia https://sepolia.blast.io|blast-sepolia"
-  [opst]="Optimism Sepolia|11155420|https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io|optimism-sepolia"
-  [unit]="Unichain Sepolia|1301|https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org|unichain-sepolia"
-  [mont]="Monad Testnet|10143|https://testnet-rpc.monad.xyz|monad-testnet"
-  [seit]="Sei Testnet|1328|https://evm-rpc-testnet.sei-apis.com|sei-testnet"
-  [bsct]="BNB Testnet|97|https://bnb-testnet.api.onfinality.io/public https://bsc-testnet-rpc.publicnode.com|binance-testnet"
-  [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
-  [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
-  [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
+    [l2rn]="B2N Testnet|334|https://b2n.rpc.caldera.xyz/http|l2rn"
+    [arbt]="Arbitrum Sepolia|421614|https://arbitrum-sepolia-rpc.publicnode.com https://sepolia-rollup.arbitrum.io/rpc|arbitrum-sepolia"
+    [bast]="Base Sepolia|84532|https://base-sepolia-rpc.publicnode.com https://sepolia.base.org|base-sepolia"
+    [blst]="Blast Sepolia|168587773|https://rpc.ankr.com/blast_testnet_sepolia https://sepolia.blast.io|blast-sepolia"
+    [opst]="Optimism Sepolia|11155420|https://optimism-sepolia-rpc.publicnode.com https://sepolia.optimism.io|optimism-sepolia"
+    [unit]="Unichain Sepolia|1301|https://unichain-sepolia-rpc.publicnode.com https://sepolia.unichain.org|unichain-sepolia"
+    [mont]="Monad Testnet|10143|https://testnet-rpc.monad.xyz|monad-testnet"
+    [seit]="Sei Testnet|1328|https://evm-rpc-testnet.sei-apis.com|sei-testnet"
+    [bsct]="BNB Testnet|97|https://bnb-testnet.api.onfinality.io/public https://bsc-testnet-rpc.publicnode.com|binance-testnet"
+    [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
+    [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
+    [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
 )
 
 load_env_file() {
@@ -146,17 +146,8 @@ get_executor_wallet_address() {
 
 rebuild_rpc_endpoints() {
     local rpc_json=$(jq -n '{}')
-    declare -A disabled_map
-    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
-    
-    for net in "${disabled_arr[@]}"; do
-        disabled_map["$net"]=1
-    done
 
     for key in "${!rpcs[@]}"; do
-        executor_id="${executor_ids[$key]}"
-        [[ -n "${disabled_map[$executor_id]}" ]] && continue
-
         urls_json=$(printf '%s\n' ${rpcs[$key]} | jq -R . | jq -s .)
         rpc_json=$(echo "$rpc_json" | jq --arg k "$key" --argjson v "$urls_json" '. + {($k): $v}')
     done
@@ -266,6 +257,14 @@ run_executor_install() {
     done
 
     export PRIVATE_KEY_LOCAL="$private_key"
+    if [[ -n "$RPC_ENDPOINTS" ]]; then
+        if echo "$RPC_ENDPOINTS" | jq empty 2>/dev/null; then
+            for key in $(echo "$RPC_ENDPOINTS" | jq -r 'keys[]'); do
+                urls=$(echo "$RPC_ENDPOINTS" | jq -r ".$key | @sh" | sed "s/'//g")
+                rpcs[$key]="$urls"
+            done
+        fi
+    fi
     rebuild_rpc_endpoints
     rebuild_network_lists
     save_env_file
@@ -415,21 +414,19 @@ EOF
 rebuild_network_lists() {
     local default_disabled=(optimism arbitrum base)
 
-    NETWORKS_DISABLED="${NETWORKS_DISABLED:-$(IFS=','; echo "${default_disabled[*]}")}"
+    NETWORKS_DISABLED="${NETWORKS_DISABLED:-$(
+        IFS=','
+        echo "${default_disabled[*]}"
+    )}"
 
     NETWORKS_DISABLED=$(echo "$NETWORKS_DISABLED" | tr ',' '\n' | awk '!seen[$0]++' | paste -sd, -)
 
-    declare -A disabled_map_final
-    IFS=',' read -ra disabled_arr <<<"$NETWORKS_DISABLED"
-    for net in "${disabled_arr[@]}"; do
-        disabled_map_final["$net"]=1
-    done
-
     declare -A seen
     local enabled_networks=()
+
     for key in "${!executor_ids[@]}"; do
         executor_id="${executor_ids[$key]}"
-        if [[ -z "${disabled_map_final[$executor_id]}" && -z "${seen[$executor_id]}" ]]; then
+        if [[ "$NETWORKS_DISABLED" != *"$executor_id"* && -z "${seen[$executor_id]}" ]]; then
             enabled_networks+=("$executor_id")
             seen[$executor_id]=1
         fi
@@ -455,13 +452,13 @@ configure_disabled_networks() {
 
     local i=1
     declare -A index_to_key
-for key in "${!executor_ids[@]}"; do
-    exec_name="${executor_ids[$key]}"
-    [[ -z "$exec_name" || -n "${already_disabled_lookup[$exec_name]}" ]] && continue
-    echo "[$i] ${network_names[$key]}"
-    index_to_key[$i]="$key"
-    ((i++))
-done
+    for key in "${!executor_ids[@]}"; do
+        exec_name="${executor_ids[$key]}"
+        [[ -z "$exec_name" || -n "${already_disabled_lookup[$exec_name]}" ]] && continue
+        echo "[$i] ${network_names[$key]}"
+        index_to_key[$i]="$key"
+        ((i++))
+    done
 
     echo ""
     echo "[0] Back"
@@ -567,7 +564,7 @@ enable_networks() {
     for number in "${numbers[@]}"; do
         [[ "$number" == "0" ]] && return
     done
-    
+
     declare -A selected
     for d in "${numbers[@]}"; do
         if ! is_number "$d" || [[ -z "${index_to_network[$d]}" ]]; then
@@ -581,7 +578,7 @@ enable_networks() {
     local reenabled=()
     for idx in "${!index_to_network[@]}"; do
         if [[ -n "${selected[$idx]}" ]]; then
-        reenabled+=("${index_to_network[$idx]}")
+            reenabled+=("${index_to_network[$idx]}")
         else
             remaining+=("${index_to_network[$idx]}")
         fi
@@ -601,8 +598,21 @@ enable_networks() {
             echo "${remaining[*]}"
         )"
     fi
-
+    if [[ -n "$RPC_ENDPOINTS" ]]; then
+        if echo "$RPC_ENDPOINTS" | jq empty 2>/dev/null; then
+            for key in $(echo "$RPC_ENDPOINTS" | jq -r 'keys[]'); do
+                urls=$(echo "$RPC_ENDPOINTS" | jq -r ".$key | @sh" | sed "s/'//g")
+                rpcs[$key]="$urls"
+            done
+        fi
+    fi
     rebuild_network_lists
+    for key in "${!networks[@]}"; do
+        IFS="|" read -r _ chain_id urls executor_id <<<"${networks[$key]}"
+        if [[ "$EXECUTOR_ENABLED_NETWORKS" == *"$executor_id"* && -z "${rpcs[$key]}" ]]; then
+            rpcs[$key]="$urls"
+        fi
+    done
     rebuild_rpc_endpoints
     save_env_file
 
@@ -702,7 +712,7 @@ edit_rpc_menu() {
                     local response=$(curl --silent --max-time 5 -X POST "$url" \
                         -H "Content-Type: application/json" \
                         --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
-                    
+
                     local actual_chain_id_hex=$(echo "$response" | jq -r '.result')
                     [[ "$actual_chain_id_hex" == "null" || -z "$actual_chain_id_hex" ]] && {
                         echo "❌ Invalid or empty response: $url"
@@ -1106,34 +1116,34 @@ menu_configuration() {
             echo ""
             echo "🌐 Current RPC Endpoints:"
             echo ""
-    declare -A rpcs
-    while IFS="=" read -r key value; do
-        rpcs["$key"]="$value"
-    done < <(
-        echo "$RPC_ENDPOINTS" |
-        jq -r 'to_entries[] | "\(.key)=" + (.value | join(" "))'
-    )
+            declare -A rpcs
+            while IFS="=" read -r key value; do
+                rpcs["$key"]="$value"
+            done < <(
+                echo "$RPC_ENDPOINTS" |
+                    jq -r 'to_entries[] | "\(.key)=" + (.value | join(" "))'
+            )
 
-    IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
-    declare -A disabled_lookup
-    for dn in "${disabled_networks[@]}"; do
-        disabled_lookup["$dn"]=1
-    done
-
-    for net in "${!networks[@]}"; do
-        executor_id="${executor_ids[$net]}"
-        [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
-
-        echo "- ${network_names[$net]}:"
-        if [[ -n "${rpcs[$net]}" ]]; then
-            for url in ${rpcs[$net]}; do
-                echo "   • $url"
+            IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
+            declare -A disabled_lookup
+            for dn in "${disabled_networks[@]}"; do
+                disabled_lookup["$dn"]=1
             done
-        else
-            echo "   ⚠️ No RPC configured."
-        fi
-        echo ""
-    done
+
+            for net in "${!networks[@]}"; do
+                executor_id="${executor_ids[$net]}"
+                [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+
+                echo "- ${network_names[$net]}:"
+                if [[ -n "${rpcs[$net]}" ]]; then
+                    for url in ${rpcs[$net]}; do
+                        echo "   • $url"
+                    done
+                else
+                    echo "   ⚠️ No RPC configured."
+                fi
+                echo ""
+            done
             ;;
         3)
             clear
