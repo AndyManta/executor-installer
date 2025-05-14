@@ -336,7 +336,7 @@ EOF
 }
 
 rebuild_network_lists() {
-    local default_disabled=(optimism arbitrum base)
+    local default_disabled=(optimism arbitrum base gnosis-testnet lisk-sepolia linea-sepolia abstract-sepolia berachain-bepolia)
 
     NETWORKS_DISABLED="${NETWORKS_DISABLED:-$(
         IFS=','
