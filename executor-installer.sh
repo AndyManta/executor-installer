@@ -208,90 +208,6 @@ install_executor_specific() {
     run_executor_install "$TAG"
 }
 
-run_executor_install() {
-    local TAG="$1"
-
-    for dir in "$HOME/t3rn" "$HOME/executor"; do
-        if [[ -d "$dir" ]]; then
-            echo "📁 Directory $(basename "$dir") exists."
-            if confirm_prompt "❓ Remove it?"; then
-                [[ "$(pwd)" == "$dir"* ]] && cd ~
-                rm -rf "$dir"
-            else
-                echo "🚫 Installation cancelled."
-                return
-            fi
-        fi
-    done
-
-    if lsof -i :9090 &>/dev/null; then
-        pid_9090=$(lsof -ti :9090)
-        [[ -n "$pid_9090" ]] && kill -9 "$pid_9090"
-        sleep 1
-    fi
-
-    mkdir -p "$HOME/t3rn" && cd "$HOME/t3rn" || exit 1
-    wget --quiet --show-progress https://github.com/t3rn/executor-release/releases/download/${TAG}/executor-linux-${TAG}.tar.gz
-    tar -xzf executor-linux-${TAG}.tar.gz
-    rm -f executor-linux-${TAG}.tar.gz
-    cd executor/executor/bin || exit 1
-
-    while true; do
-        private_key=$(prompt_input "🔑 Enter PRIVATE_KEY_LOCAL: ")
-        private_key=$(echo "$private_key" | sed 's/^0x//')
-        if [[ -n "$private_key" ]]; then
-            break
-        fi
-
-        echo ""
-        echo "❓ Continue without private key?"
-        echo ""
-        echo "[1] 🔁 Retry"
-        echo "[2] ⏩ Continue without key"
-        echo ""
-        echo "[0] ❌ Cancel"
-        echo ""
-        read -p "Select option [0-2]: " pk_choice
-        echo ""
-        case $pk_choice in
-        1) continue ;;
-        2) break ;;
-        0)
-            echo "❌ Cancelled."
-            return
-            ;;
-        *) echo "❌ Invalid option." ;;
-        esac
-    done
-
-    export PRIVATE_KEY_LOCAL="$private_key"
-    if [[ -n "$RPC_ENDPOINTS" ]]; then
-        if echo "$RPC_ENDPOINTS" | jq empty 2>/dev/null; then
-            for key in $(echo "$RPC_ENDPOINTS" | jq -r 'keys[]'); do
-                urls=$(echo "$RPC_ENDPOINTS" | jq -r ".$key | @sh" | sed "s/'//g")
-                rpcs[$key]="$urls"
-            done
-        fi
-    fi
-    rebuild_rpc_endpoints
-    rebuild_network_lists
-    save_env_file
-    load_env_file
-
-    if ! validate_config_before_start; then
-        echo "❌ Invalid configuration. Aborting."
-        return
-    fi
-
-    sudo systemctl disable --now t3rn-executor.service 2>/dev/null
-    sudo rm -f /etc/systemd/system/t3rn-executor.service
-    sudo systemctl daemon-reload
-    sleep 1
-    create_systemd_unit
-    wait_for_wallet_log_and_save &
-    view_executor_logs
-}
-
 validate_config_before_start() {
     echo ""
     echo "🧪 Validating configuration..."
@@ -1015,6 +931,90 @@ view_executor_logs() {
         echo "❌ Executor not found. It might not be installed or has been removed."
         echo ""
     fi
+}
+
+run_executor_install() {
+    local TAG="$1"
+
+    for dir in "$HOME/t3rn" "$HOME/executor"; do
+        if [[ -d "$dir" ]]; then
+            echo "📁 Directory $(basename "$dir") exists."
+            if confirm_prompt "❓ Remove it?"; then
+                [[ "$(pwd)" == "$dir"* ]] && cd ~
+                rm -rf "$dir"
+            else
+                echo "🚫 Installation cancelled."
+                return
+            fi
+        fi
+    done
+
+    if lsof -i :9090 &>/dev/null; then
+        pid_9090=$(lsof -ti :9090)
+        [[ -n "$pid_9090" ]] && kill -9 "$pid_9090"
+        sleep 1
+    fi
+
+    mkdir -p "$HOME/t3rn" && cd "$HOME/t3rn" || exit 1
+    wget --quiet --show-progress https://github.com/t3rn/executor-release/releases/download/${TAG}/executor-linux-${TAG}.tar.gz
+    tar -xzf executor-linux-${TAG}.tar.gz
+    rm -f executor-linux-${TAG}.tar.gz
+    cd executor/executor/bin || exit 1
+
+    while true; do
+        private_key=$(prompt_input "🔑 Enter PRIVATE_KEY_LOCAL: ")
+        private_key=$(echo "$private_key" | sed 's/^0x//')
+        if [[ -n "$private_key" ]]; then
+            break
+        fi
+
+        echo ""
+        echo "❓ Continue without private key?"
+        echo ""
+        echo "[1] 🔁 Retry"
+        echo "[2] ⏩ Continue without key"
+        echo ""
+        echo "[0] ❌ Cancel"
+        echo ""
+        read -p "Select option [0-2]: " pk_choice
+        echo ""
+        case $pk_choice in
+        1) continue ;;
+        2) break ;;
+        0)
+            echo "❌ Cancelled."
+            return
+            ;;
+        *) echo "❌ Invalid option." ;;
+        esac
+    done
+
+    export PRIVATE_KEY_LOCAL="$private_key"
+    if [[ -n "$RPC_ENDPOINTS" ]]; then
+        if echo "$RPC_ENDPOINTS" | jq empty 2>/dev/null; then
+            for key in $(echo "$RPC_ENDPOINTS" | jq -r 'keys[]'); do
+                urls=$(echo "$RPC_ENDPOINTS" | jq -r ".$key | @sh" | sed "s/'//g")
+                rpcs[$key]="$urls"
+            done
+        fi
+    fi
+    rebuild_rpc_endpoints
+    rebuild_network_lists
+    save_env_file
+    load_env_file
+
+    if ! validate_config_before_start; then
+        echo "❌ Invalid configuration. Aborting."
+        return
+    fi
+
+    sudo systemctl disable --now t3rn-executor.service 2>/dev/null
+    sudo rm -f /etc/systemd/system/t3rn-executor.service
+    sudo systemctl daemon-reload
+    sleep 1
+    create_systemd_unit
+    wait_for_wallet_log_and_save &
+    view_executor_logs
 }
 
 show_support_menu() {
