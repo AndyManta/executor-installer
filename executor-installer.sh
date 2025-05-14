@@ -46,6 +46,7 @@ initialize_dynamic_network_data() {
 }
 
 declare -A networks=(
+    # Testnets
     [l2rn]="B2N Testnet|334|https://b2n.rpc.caldera.xyz/http|l2rn"
     [arbt]="Arbitrum Sepolia|421614|https://arbitrum-sepolia-rpc.publicnode.com https://sepolia-rollup.arbitrum.io/rpc|arbitrum-sepolia"
     [bast]="Base Sepolia|84532|https://base-sepolia-rpc.publicnode.com https://sepolia.base.org|base-sepolia"
@@ -55,6 +56,13 @@ declare -A networks=(
     [mont]="Monad Testnet|10143|https://testnet-rpc.monad.xyz|monad-testnet"
     [seit]="Sei Testnet|1328|https://evm-rpc-testnet.sei-apis.com|sei-testnet"
     [bsct]="BNB Testnet|97|https://bnb-testnet.api.onfinality.io/public https://bsc-testnet-rpc.publicnode.com|binance-testnet"
+    [gnot]="Gnosis Testnet|10200|https://gnosis-chiado-rpc.publicnode.com|gnosis-testnet"
+    [lskt]="Lisk Sepolia|4202|https://rpc.sepolia-api.lisk.com|lisk-sepolia"
+    [lint]="Linea Sepolia|59141|https://rpc.sepolia.linea.build https://linea-sepolia-rpc.publicnode.com|linea-sepolia"
+    [abst]="Abstract Sepolia|11124|https://api.testnet.abs.xyz|abstract-sepolia"
+    [bert]="Berachain Bepolia|80069|https://bepolia.rpc.berachain.com|berachain-bepolia"
+
+    # Mainnet
     [opmn]="Optimism Mainnet|10|https://optimism-rpc.publicnode.com|optimism"
     [arbm]="Arbitrum Mainnet|42161|https://arbitrum-one-rpc.publicnode.com|arbitrum"
     [basm]="Base Mainnet|8453|https://base-rpc.publicnode.com|base"
