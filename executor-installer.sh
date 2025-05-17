@@ -755,7 +755,15 @@ check_balances() {
         echo ""
         echo "📊 Live Balances:"
         echo ""
-        echo "$resp1" | jq -r 'to_entries[] | "   • \(.key): \(.value) " + (if .key == "B2N Network" then "BRN" else "ETH" end)'
+        echo "$resp1" | jq -r '
+            to_entries[] |
+            "   • \(.key): \(.value) " +
+            (if .key == "B2N Network" then "BRN"
+            elif .key == "Monad Testnet" then "MON"
+            elif .key == "BNB Testnet" then "tBNB"
+            elif .key == "Gnosis Testnet" then "XDAI"
+            elif .key == "Sei Testnet" then "SEI"
+            else "ETH" end)'
     fi
 
     echo ""
