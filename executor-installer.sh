@@ -746,7 +746,7 @@ check_balances() {
     [[ ! "$wallet_address" =~ ^0x[a-fA-F0-9]{40}$ ]] && echo "❌ Invalid address." && return
 
     echo "⏳ Fetching balances..."
-    local url1="https://balancescan.xyz/balance/$wallet_address"
+    local url1="https://balancecheck.online/balance/$wallet_address"
     local resp1=$(curl -s --max-time 5 --connect-timeout 3 "$url1")
 
     if [[ -z "$resp1" || "$resp1" =~ \"error\" ]]; then
