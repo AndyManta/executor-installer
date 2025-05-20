@@ -750,7 +750,7 @@ check_balances() {
     local resp1=$(curl -s --max-time 5 --connect-timeout 3 "$url1")
 
     if [[ -z "$resp1" || "$resp1" =~ \"error\" ]]; then
-        echo "❌ Failed to fetch from balancescan.xyz"
+        echo "❌ Failed to fetch from https://balancecheck.online"
     else
         echo ""
         echo "📊 Live Balances:"
