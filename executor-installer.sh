@@ -229,12 +229,28 @@ install_executor_latest() {
 }
 
 install_executor_specific() {
-    input_version=$(prompt_input "🔢 Enter version (e.g. 0.60.0): ")
+    input_version=$(prompt_input "🔢 Enter version (e.g. 0.70.0): ")
+
+    input_version=$(echo "$input_version" | tr -cd '[:print:]' | tr -d '[:space:]')
+
     if [[ -z "$input_version" ]]; then
         echo "↩️ No version entered. Returning."
         return
     fi
+
+    if [[ ! "$input_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "❌ Invalid version format. Use format like 0.70.0"
+        return
+    fi
+
     TAG="v${input_version#v}"
+    URL="https://github.com/t3rn/executor-release/releases/download/$TAG/executor-linux-$TAG.tar.gz"
+
+    if ! curl -s --head --fail "$URL" >/dev/null; then
+        echo "❌ Version $TAG not found on GitHub."
+        return
+    fi
+
     run_executor_install "$TAG"
 }
 
@@ -1005,6 +1021,7 @@ run_executor_install() {
                 [[ "$(pwd)" == "$dir"* ]] && cd ~
                 rm -rf "$dir"
             else
+                echo ""
                 echo "🚫 Installation cancelled."
                 return
             fi
