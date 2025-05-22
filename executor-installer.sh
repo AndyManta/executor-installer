@@ -152,6 +152,12 @@ get_executor_wallet_address() {
     grep -E '^\#?\s*EXECUTOR_WALLET_ADDRESS=' "$HOME/t3rn/.env" | cut -d= -f2
 }
 
+get_executor_version() {
+    local env_file="$HOME/t3rn/.env"
+    [[ -f "$env_file" ]] || return
+    grep -E '^\#?\s*EXECUTOR_VERSION=' "$env_file" | head -n 1 | cut -d= -f2 | xargs
+}
+
 rebuild_rpc_endpoints() {
     local rpc_json=$(jq -n '{}')
 
@@ -178,6 +184,30 @@ wait_for_wallet_log_and_save() {
 
         if [[ -n "$address" ]]; then
             grep -q 'EXECUTOR_WALLET_ADDRESS=' "$env_file" || echo "# EXECUTOR_WALLET_ADDRESS=$address" >>"$env_file"
+            break
+        fi
+
+        current_time=$(date +%s)
+        elapsed=$((current_time - start_time))
+        ((elapsed > timeout)) && break
+
+        sleep 1
+    done
+}
+
+wait_for_executor_version_and_save() {
+    local env_file="$HOME/t3rn/.env"
+    local start_time=$(date +%s)
+    local timeout=10
+
+    while true; do
+        version=$(journalctl -u t3rn-executor --no-pager -n 25 -r |
+            grep '💿 Version:' |
+            sed -n 's/.*💿 Version: \(v[0-9.]*\).*/\1/p' |
+            head -n 1)
+
+        if [[ -n "$version" ]]; then
+            grep -q 'EXECUTOR_VERSION=' "$env_file" || echo "# EXECUTOR_VERSION=$version" >>"$env_file"
             break
         fi
 
@@ -265,6 +295,10 @@ save_env_file() {
     local wallet_comment=""
     if [[ -f "$ENV_FILE" ]]; then
         wallet_comment=$(grep '^# EXECUTOR_WALLET_ADDRESS=' "$ENV_FILE")
+    fi
+
+    if [[ -f "$ENV_FILE" ]]; then
+        wallet_comment=$(grep '^# EXECUTOR_VERSION=' "$ENV_FILE")
     fi
 
     rebuild_network_lists
@@ -817,15 +851,11 @@ check_balances() {
     fi
 
     echo ""
-    read -p "↩️ Press Enter to return to menu..."
+    read -p "↩️  Press Enter to return"
     clear
 }
 
 show_balance_change_history() {
-    clear
-    echo ""
-    echo "📊 B2N Live Transactions:"
-    echo ""
 
     wallet_address=$(get_executor_wallet_address)
 
@@ -836,7 +866,7 @@ show_balance_change_history() {
 
     if [[ ! "$wallet_address" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
         echo "❌ Invalid address format."
-        read -p "Press Enter to return..." && return
+        read -p "↩️  Press Enter to return" && return
     fi
 
     tput civis
@@ -882,6 +912,8 @@ show_balance_change_history() {
             tput el
             printf " %-9s │ %-15s │ ${color}%s %-10s${reset}\n" "$age" "$value_eth" "$arrow" "$delta_eth"
         done
+            tput cup $((6 + ${#tx_lines[@]} + 1)) 0
+            echo "↩️  Press Enter to return"
     }
 
     update_ages_only() {
@@ -894,19 +926,20 @@ show_balance_change_history() {
             diff_sec=$((now_epoch - ts_epoch))
             if ((diff_sec < 60)); then
                 age="${diff_sec}s ago"
-            else
+            elif ((diff_sec < 3600)); then
                 age="$((diff_sec / 60))m ago"
+            elif ((diff_sec < 86400)); then
+                age="$((diff_sec / 3600))h ago"
+            else
+                age="$((diff_sec / 86400))d ago"
             fi
 
             tput cup $((6 + i)) 0
-            printf "%-10s" " "
-            tput cup $((6 + i)) 0
-            printf " %-10s" "$age"
+            printf " %-9s" "$age"
         done
     }
 
-    clear
-    echo "📋 B2N Live Transactions - Press Enter to return to menu"
+    echo "📋 Live Transactions"
     echo ""
     echo "Wallet: $wallet_address"
     echo ""
@@ -916,9 +949,8 @@ show_balance_change_history() {
 
     while true; do
         resp=$(curl -s "https://b2n.explorer.caldera.xyz/api/v2/addresses/$wallet_address/coin-balance-history")
-        tx=$(echo "$resp" | jq -r '.items[0] | "\(.block_timestamp)|\(.value)|\(.delta)|\(.transaction_hash)"')
-
-        [[ "$tx" == "|||" || -z "$tx" ]] && sleep 1 && continue
+        tx=$(echo "$resp" | jq -r '.items[0] | "\(.block_timestamp)|\(.value)|\(.delta)|\(.transaction_hash)"' 2>/dev/null || true)
+        [[ -z "$tx" || "$tx" == "|||" ]] && sleep 1 && continue
 
         IFS="|" read -r timestamp value_raw delta_raw tx_hash <<<"$tx"
 
@@ -946,6 +978,20 @@ view_executor_logs() {
     else
         echo "❌ Executor not found. It might not be installed or has been removed."
         echo ""
+    fi
+}
+
+refresh_executor_version() {
+    local env_file="$HOME/t3rn/.env"
+
+    if systemctl is-active --quiet t3rn-executor; then
+        executor_version=$(get_executor_version)
+    else
+        executor_version=""
+
+        if [[ -f "$env_file" ]]; then
+            sed -i '/^\#\? *EXECUTOR_VERSION=/d' "$env_file"
+        fi
     fi
 }
 
@@ -1030,6 +1076,7 @@ run_executor_install() {
     sleep 1
     create_systemd_unit
     wait_for_wallet_log_and_save &
+    wait_for_executor_version_and_save &
     view_executor_logs
 }
 
@@ -1043,16 +1090,21 @@ show_support_menu() {
     echo "🌐 Discord nickname:"
     echo "   Zikett"
     echo ""
-    read -p "Press Enter to return to the main menu..."
+    read -p "↩️  Press Enter to return"
     clear
 }
 
 main_menu() {
     while true; do
+        refresh_executor_version
         echo "===================================="
         echo "  ⚙️ Executor Installer Main Menu"
         echo "             by Zikett🍌"
         echo "===================================="
+        if [[ -n "$executor_version" ]]; then
+            echo ""
+            echo "💿 The Executor is installed: $executor_version"
+        fi
         echo ""
         echo "[1] 📦 Install / Uninstall Executor"
         echo "[2] 🔎 View Executor Logs"
