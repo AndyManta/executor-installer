@@ -1092,8 +1092,7 @@ run_executor_install() {
     sudo systemctl daemon-reload
     sleep 1
     create_systemd_unit
-    wait_for_wallet_log_and_save &
-    wait_for_executor_version_and_save &
+    (wait_for_wallet_log_and_save && wait_for_executor_version_and_save) &
     view_executor_logs
 }
 
