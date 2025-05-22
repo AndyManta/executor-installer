@@ -281,7 +281,6 @@ EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API=${EXECUTOR_PROCESS_PENDING_ORDERS_FROM_
 EXECUTOR_PROCESS_ORDERS_API_ENABLED=${EXECUTOR_PROCESS_ORDERS_API_ENABLED:-true}
 EXECUTOR_MAX_L3_GAS_PRICE=${EXECUTOR_MAX_L3_GAS_PRICE:-1000}
 EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC=${EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC:-30}
-EXECUTOR_MIN_BALANCE_THRESHOLD_ETH=${EXECUTOR_MIN_BALANCE_THRESHOLD_ETH:-1}
 PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-false}
 
 ### This comment was created for convenience. It does not affect the operation of the Executor.
@@ -294,7 +293,7 @@ NETWORKS_DISABLED=${NETWORKS_DISABLED}
 
 ### This comment was created for convenience. It does not affect the operation of the Executor.
 
-## l2rn,arbitrum-sepolia,base-sepolia,unichain-sepolia,optimism-sepolia,blast-sepolia,sei-testnet,monad-testnet,optimism,arbitrum,base
+## optimism,arbitrum,base,l2rn,arbitrum-sepolia,base-sepolia,unichain-sepolia,optimism-sepolia,blast-sepolia,sei-testnet,monad-testnet,binance-testnet,gnosis-testnet,lisk-sepolia,linea-sepolia,abstract-sepolia,berachain-bepolia
 
 # optimism,arbitrum,base - Mainnet Chain
 
@@ -591,11 +590,11 @@ uninstall_t3rn() {
     sudo journalctl --vacuum-time=1s
 
     unset ENVIRONMENT LOG_LEVEL LOG_PRETTY EXECUTOR_PROCESS_BIDS_ENABLED \
-        EXECUTOR_PROCESS_ORDERS_ENABLED EXECUTOR_PROCESS_CLAIMS_ENABLED \
-        EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API EXECUTOR_PROCESS_ORDERS_API_ENABLED \
-        EXECUTOR_MAX_L3_GAS_PRICE EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC \
-        EXECUTOR_MIN_BALANCE_THRESHOLD_ETH PROMETHEUS_ENABLED PRIVATE_KEY_LOCAL \
-        EXECUTOR_ENABLED_NETWORKS NETWORKS_DISABLED RPC_ENDPOINTS
+          EXECUTOR_PROCESS_ORDERS_ENABLED EXECUTOR_PROCESS_CLAIMS_ENABLED \
+          EXECUTOR_PROCESS_PENDING_ORDERS_FROM_API EXECUTOR_PROCESS_ORDERS_API_ENABLED \
+          EXECUTOR_MAX_L3_GAS_PRICE EXECUTOR_PROCESS_BIDS_API_INTERVAL_SEC \
+          PROMETHEUS_ENABLED PRIVATE_KEY_LOCAL \
+          EXECUTOR_ENABLED_NETWORKS NETWORKS_DISABLED RPC_ENDPOINTS
     echo ""
     echo "✅ Executor removed."
 }
