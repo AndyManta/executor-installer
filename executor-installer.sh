@@ -309,12 +309,10 @@ save_env_file() {
     mkdir -p "$HOME/t3rn"
 
     local wallet_comment=""
-    if [[ -f "$ENV_FILE" ]]; then
-        wallet_comment=$(grep '^# EXECUTOR_WALLET_ADDRESS=' "$ENV_FILE")
-    fi
 
     if [[ -f "$ENV_FILE" ]]; then
-        wallet_comment=$(grep '^# EXECUTOR_VERSION=' "$ENV_FILE")
+        wallet_comment=$(grep '^# EXECUTOR_WALLET_ADDRESS=' "$ENV_FILE")
+        version_comment=$(grep '^# EXECUTOR_VERSION=' "$ENV_FILE")
     fi
 
     rebuild_network_lists
@@ -353,9 +351,9 @@ RPC_ENDPOINTS='${RPC_ENDPOINTS}'
 
 PRIVATE_KEY_LOCAL=${PRIVATE_KEY_LOCAL:-""}
 EOF
-    if [[ -n "$wallet_comment" ]]; then
-        echo "$wallet_comment" >>"$ENV_FILE"
-    fi
+    for comment in "$wallet_comment" "$version_comment"; do
+        [[ -n "$comment" ]] && echo "$comment" >>"$ENV_FILE"
+    done
 }
 
 create_systemd_unit() {
