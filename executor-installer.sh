@@ -1103,7 +1103,7 @@ main_menu() {
         echo "===================================="
         if [[ -n "$executor_version" ]]; then
             echo ""
-            echo "💿 The Executor is installed: $executor_version"
+            echo "💿 Executor installed: $executor_version"
         fi
         echo ""
         echo "[1] 📦 Install / Uninstall Executor"
