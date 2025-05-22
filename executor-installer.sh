@@ -870,9 +870,18 @@ show_balance_change_history() {
             arrow="▲"
             [[ "$delta_raw" =~ ^- ]] && arrow="▼"
 
+            if [[ "$arrow" == "▲" ]]; then
+                color="\033[0;32m"
+            elif [[ "$arrow" == "▼" ]]; then
+                color="\033[0;31m"
+            else
+                color=""
+            fi
+                reset="\033[0m"
+
             tput cup $((6 + i)) 0
             tput el
-            printf " %-9s │ %-15s │ %s %s\n" "$age" "$value_eth" "$arrow" "$delta_eth"
+            printf " %-9s │ %-15s │ ${color}%s %-10s${reset}\n" "$age" "$value_eth" "$arrow" "$delta_eth"
         done
     }
 
