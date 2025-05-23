@@ -207,7 +207,8 @@ wait_for_executor_version_and_save() {
             head -n 1)
 
         if [[ -n "$version" ]]; then
-            grep -q 'EXECUTOR_VERSION=' "$env_file" || echo "# EXECUTOR_VERSION=$version" >>"$env_file"
+            [[ -f "$env_file" ]] && sed -i '/^\#\? *EXECUTOR_VERSION=/d' "$env_file"
+            echo "# EXECUTOR_VERSION=$version" >>"$env_file"
             break
         fi
 
@@ -650,93 +651,120 @@ uninstall_t3rn() {
 initialize_dynamic_network_data
 
 edit_rpc_menu() {
-    clear
+  clear
+  echo ""
+  echo "🌐 Edit RPC Endpoints"
+  echo ""
+
+  local changes_made=false
+
+  IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
+  declare -A disabled_lookup
+  for dn in "${disabled_networks[@]}"; do
+    disabled_lookup["$dn"]=1
+  done
+
+  for net in "${!networks[@]}"; do
+    IFS="|" read -r name chain_id urls executor_id <<<"${networks[$net]}"
+    [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+
+    echo "🔗 $name"
+    echo "Current: ${rpcs[$net]}"
     echo ""
-    echo "🌐 Edit RPC Endpoints"
-    echo ""
-    local changes_made=false
 
-    IFS=',' read -ra disabled_networks <<<"$NETWORKS_DISABLED"
-    declare -A disabled_lookup
-    for dn in "${disabled_networks[@]}"; do
-        disabled_lookup["$dn"]=1
-    done
+    while true; do
+      read -p "➡️ Enter new RPC URLs (space-separated, or Enter to skip): " input
 
-    for net in "${!networks[@]}"; do
-        IFS="|" read -r name chain_id urls executor_id <<<"${networks[$net]}"
-        [[ -n "${disabled_lookup[$executor_id]}" ]] && continue
+      if [[ -z "$input" ]]; then
+        echo "ℹ️ Skipped updating $name."
+        break
+      fi
 
-        echo "🔗 $name"
-        echo "Current: ${rpcs[$net]}"
+      local valid_urls=()
+      local invalid_urls=()
 
-        while true; do
-            read -p "➡️ Enter new RPC URLs (space-separated, or Enter to skip): " input
+      for url in $input; do
+        if [[ "$url" =~ ^https?:// ]]; then
+          echo ""
+          echo "⏳ Checking RPC ..."
 
-            [[ -z "$input" ]] && echo "ℹ️ Skipped updating $name." && break
+          response=$(curl -s -w "%{http_code}" --max-time 5 -X POST "$url" \
+            -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
 
-            local valid_urls=()
-            local invalid=false
+          http_code="${response: -3}"
+          body="${response::-3}"
 
-            for url in $input; do
-                if [[ "$url" =~ ^https?:// ]]; then
-                    echo "⏳ Checking RPC: $url ..."
-                    local response=$(curl --silent --max-time 5 -X POST "$url" \
-                        -H "Content-Type: application/json" \
-                        --data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}')
+          if [[ "$http_code" -ge 401 && "$http_code" -le 504 ]]; then
+            echo "❌ $url → HTTP $http_code"
+            echo "📛 RPC is not working or rate limit exceeded."
+            invalid_urls+=("$url")
+            continue
+          fi
 
-                    local actual_chain_id_hex=$(echo "$response" | jq -r '.result')
-                    [[ "$actual_chain_id_hex" == "null" || -z "$actual_chain_id_hex" ]] && {
-                        echo "❌ Invalid or empty response: $url"
-                        invalid=true
-                        continue
-                    }
+          actual_chain_id_hex=$(echo "$body" | jq -r '.result' 2>/dev/null)
+          if [[ -z "$actual_chain_id_hex" || "$actual_chain_id_hex" == "null" ]]; then
+            echo "❌ $url → No valid chainId returned."
+            invalid_urls+=("$url")
+            continue
+          fi
 
-                    local actual_chain_id_dec=$((16#${actual_chain_id_hex#0x}))
-                    if [[ "$actual_chain_id_dec" == "$chain_id" ]]; then
-                        valid_urls+=("$url")
-                    else
-                        echo "❌ Wrong ChainID: expected $chain_id, got $actual_chain_id_dec."
-                        invalid=true
-                    fi
-                else
-                    echo "❌ Invalid URL format (must start with http:// or https://): $url"
-                    invalid=true
-                fi
-            done
-
-            if [[ "$invalid" == false && "${#valid_urls[@]}" -gt 0 ]]; then
-                rpcs[$net]="${valid_urls[*]}"
-                changes_made=true
-                echo ""
-                echo "✅ Updated $name."
-                break
-            else
-                echo "🚫 One or more URLs were invalid. Please re-enter RPCs for $name."
-            fi
-        done
-
-        echo ""
-    done
-
-    if [[ "$changes_made" == true ]]; then
-        rebuild_rpc_endpoints
-        save_env_file
-        echo "✅ RPC endpoints updated and saved."
-        if confirm_prompt "🔄 To apply the changes, the Executor must be restarted. Restart now?"; then
-            if sudo systemctl restart t3rn-executor; then
-                echo ""
-                echo "✅ Executor restarted."
-            else
-                echo ""
-                echo "❌ Failed to restart executor."
-            fi
+          actual_chain_id_dec=$((16#${actual_chain_id_hex#0x}))
+          if [[ "$actual_chain_id_dec" == "$chain_id" ]]; then
+            echo "✅ Valid RPC: $url"
+            valid_urls+=("$url")
+          else
+            echo "❌ $url → Wrong ChainID"
+            invalid_urls+=("$url")
+          fi
         else
-            echo ""
-            echo "ℹ️ You can restart manually later from the Main Menu."
+          echo "❌ $url → Invalid URL format"
+          invalid_urls+=("$url")
         fi
+      done
+
+      if [[ ${#valid_urls[@]} -gt 0 ]]; then
+        rpcs[$net]="${valid_urls[*]}"
+        changes_made=true
+        echo ""
+        echo "✅ Saved valid RPCs for $name."
+      fi
+
+      if [[ ${#invalid_urls[@]} -gt 0 ]]; then
+        echo ""
+        echo "⚠️ Invalid RPC:"
+        for i in "${invalid_urls[@]}"; do echo "   - $i"; done
+        input="${invalid_urls[*]}"
+        echo ""
+        continue
+      fi
+
+      break
+    done
+
+    echo ""
+  done
+
+  if [[ "$changes_made" == true ]]; then
+    rebuild_rpc_endpoints
+    save_env_file
+    echo "✅ RPC endpoints updated and saved."
+
+    if confirm_prompt "🔄 To apply changes, the Executor must be restarted. Restart now?"; then
+      if sudo systemctl restart t3rn-executor; then
+        echo ""
+        echo "✅ Executor restarted."
+      else
+        echo ""
+        echo "❌ Failed to restart executor."
+      fi
     else
-        echo "ℹ️ No RPC changes made."
+      echo ""
+      echo "ℹ️ You can restart manually later from the main menu."
     fi
+  else
+    echo "ℹ️ No RPC changes made."
+  fi
 }
 
 edit_env_file() {
@@ -871,6 +899,18 @@ check_balances() {
 
 show_balance_change_history() {
 
+    min_cols=50
+    min_lines=29
+
+    cols=$(tput cols)
+    lines=$(tput lines)
+
+    if (( cols < min_cols || lines < min_lines )); then
+        echo "❌ Terminal too small. Please resize to at least ${min_cols}x${min_lines}."
+        echo ""
+        read -p "↩️ Press Enter to return..." && return
+    fi
+
     wallet_address=$(get_executor_wallet_address)
 
     if [[ -z "$wallet_address" ]]; then
@@ -982,8 +1022,6 @@ show_balance_change_history() {
     done
 
     tput cnorm
-    echo ""
-    clear
 }
 
 view_executor_logs() {
