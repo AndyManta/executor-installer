@@ -1361,6 +1361,7 @@ menu_configuration() {
 
 menu_wallet_tools() {
     while true; do
+        clear
         echo ""
         echo "====== 💰 Wallet Tools ======"
         echo ""
