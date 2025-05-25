@@ -916,6 +916,7 @@ show_balance_change_history() {
     if [[ -z "$wallet_address" ]]; then
         wallet_address=$(prompt_input "🔑 Enter wallet address:")
         wallet_address=$(echo "$wallet_address" | xargs)
+        clear
     fi
 
     if [[ ! "$wallet_address" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
